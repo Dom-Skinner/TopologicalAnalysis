@@ -158,7 +158,16 @@ function weinberg_find_total(index_points,vert,regions,ridge_pts,ridge_vert)
 end
 =#
 
-function weinberg2D_core(g,order_mat)
+function edge_neighbors(g,edge_index)
+    e_neighbors = Array{Int64}(undef,0)
+    for e in edge_index
+        append!(e_neighbors,neighbors(g,e))
+    end
+    return unique!(e_neighbors)
+end
+
+
+function weinberg2D_core(g,order_mat,N)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
 
@@ -202,6 +211,12 @@ function weinberg2D(Positions,periodic=false)
     simplices_period = map.(x -> index_ref[x],simplices[rows_keep,:])
     g_period = graph_construct(simplices_period,N)
 
-
-    return weinberg2D_core(g_period,order_mat)
+    if periodic
+        return weinberg2D_core(g_period,order_mat,N)
+    else
+        e_2 = edge_neighbors(g_period,edge_index)
+        idx = setdiff(1:nv(g_period), e_2)
+        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N)
+        return code_tot[idx], S_tot[idx], idx
+    end
 end

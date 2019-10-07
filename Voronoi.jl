@@ -153,7 +153,7 @@ end
 function periodic_extend!(Coords,ref,tol=0.2)
     # Applies the periodic boundary conditions so that no boundary effects apply
     # to any of the original N points.
-    if length(Coords[1] == 2)
+    if length(Coords[1]) == 2
         N = length(Coords)
         for i = 1:N
             for k1 in  -1:1, k2 in -1:1
@@ -167,7 +167,7 @@ function periodic_extend!(Coords,ref,tol=0.2)
                 end
             end
         end
-    elseif length(Coords[1] == 3)
+    elseif length(Coords[1]) == 3
         N = length(Coords)
         for i = 1:N
             for k1 in  -1:1, k2 in -1:1, k3 in -1:1
