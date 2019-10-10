@@ -4,6 +4,7 @@
 
 using PyCall
 using LinearAlgebra: norm
+using Statistics: median
 scipy = pyimport("scipy.spatial.qhull")
 
 
@@ -78,7 +79,8 @@ function alpha_shape_eval!(neighbours,simplices,p)
          alpha_shape2D!(α_val,simplices,p)
     end
 
-    α = 2.0
+    α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted 
+    println("using alpha = ",α) # if there are density variations
 
     for s in 1:length(neighbours)
         if neighbours[s] > 0
