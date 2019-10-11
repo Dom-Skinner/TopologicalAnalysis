@@ -52,6 +52,6 @@ function write_avg(Data_dir_str)
     CSV.write(Data_dir_str*"_avg.txt",  df)
 end
 function write_avg(Weinberg,Data_dir_str)
-    df = DataFrame(codes = collect(values(Weinberg)), freq = collect(keys(Weinberg)))
+    df = DataFrame(codes = collect(keys(Weinberg)), freq = collect(values(Weinberg)))
     CSV.write(Data_dir_str*"_avg.txt",  df)
 end

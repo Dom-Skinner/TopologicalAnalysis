@@ -1,8 +1,25 @@
 using LightGraphs
 using GraphPlot
-
+using DataFrames,CSV
 include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/VoronoiTools.jl")
 using .VoronoiTools
+include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/LocalCellularStructure.jl")
+using .LocalCellularStructure
+
+
+function center_test(g,v)
+    g_ego1,vmap = induced_subgraph(g,neighborhood(g,v,1))
+
+    for e in edges(g_ego1)
+        if length(intersect(neighbors(g,vmap[dst(e)]),neighbors(g,vmap[src(e)]))) == 1
+            return false
+        end
+    end
+    return true
+end
+
+
+
 
 function central_node(g)
     N = nv(g)
@@ -15,11 +32,32 @@ function central_node(g)
     if length(ret) == 1
         return ret[1]
     else
-        println("Winging it on the central node")
-        # TODO fix this...
-        x = eigenvector_centrality(g)
-        v,idx = findmax(x)
-        return idx
+        ret_idx = findall([center_test(g,r) for r in ret])
+        if length(ret_idx) == 1
+            return ret[ret_idx[1]]
+        end
+
+        println("Trying new method")
+        edge_pts = []
+        for e in edges(g)
+            if length(intersect(neighbors(g,dst(e)),neighbors(g,src(e)))) == 1
+                push!(edge_pts,src(e))
+                push!(edge_pts,dst(e))
+            end
+        end
+        unique!(edge_pts)
+        rret = [];
+        for r in ret
+            if length(intersect(neighbors(g,r),edge_pts)) == 0
+                 push!(rret,r)
+            end
+        end
+        if length(rret) != 1
+            savegraph("debug.lgz", g)
+            println("Couldn't find central node (so guessed)")
+        end
+        return rret[1]
+
     end
 end
 
@@ -100,7 +138,18 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
         total_order = map.(x -> get(vmap_inv, x, -1), order_copy[vmap[i]])
         order_local[i] = total_order[total_order .> 0]
     end
+    if (minimum([length(neighbors(g_ego,k)) for k = 1:nv(g_ego)]) < 3) || (has_edge(g,v1,v2))
+        # don't flip!!
+        return [-1]
+    end
     weinberg_find!(code_tot,S_tot,1,g_ego,order_local)
+    if S_tot[1] == -1
+        println(order_mat)
+        println(order_copy)
+        println(order_local)
+        savegraph( "debug2.lgz", g)
+        error("..")
+    end
     return code_tot[1]
 end
 
@@ -125,11 +174,80 @@ function return_nbh_vertex(order_arr,v)
 end
 
 
-w1 = [1, 2, 3, 1, 3, 4, 1, 4, 5, 1, 5, 6, 1, 6, 2, 6, 7, 2, 7, 8, 2, 8, 3, 8, 9, 3, 9, 10, 3, 10, 4, 10, 11, 4, 11, 12, 4, 12, 5, 12, 11, 13, 14, 15, 16, 17, 18, 7, 18, 8, 18, 17, 8, 17, 9, 17, 16, 9, 16, 15, 9, 15, 10, 15, 14, 10, 14, 13, 10, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-g = SimpleGraph(maximum(w1))
-for i = 1:(length(w1)-1)
-    add_edge!(g,w1[i],w1[i+1])
+function w_vec_neighbors(w_in)
+    w_neighbors = []
+    g = SimpleGraph(maximum(w_in))
+    for i = 1:(length(w_in)-1)
+        add_edge!(g,w_in[i],w_in[i+1])
+    end
+    x,y,fixed_vecs = tutte_embedding(g)
+    order_mat = order_mat_find(g,x,y)
+
+    cent_node = central_node(g)
+    ds  = dijkstra_shortest_paths(g,cent_node)
+    dist_to_cent = ds.dists
+    for e in edges(g)
+        d = dst(e)
+        s = src(e)
+
+        v11,v21 = return_nbh_vertex(order_mat[s],d)
+        v22,v12 = return_nbh_vertex(order_mat[d],s)
+
+        if (v11 == v12) && (v21 == v22)
+            #println("A Flippable triangle")
+            if (dist_to_cent[d] == dist_to_cent[s]) &&
+                (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
+                #println("Don't flip!")
+            else
+                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
+            end
+        end
+    end
+    return w_neighbors
 end
+
+
+function link_w!(g_weinberg,d_weinberg,w1,w2)
+    if !haskey(d_weinberg,w1)
+          d_weinberg[w1] = nv(g_weinberg)+1
+          add_vertex!(g_weinberg)
+    end
+    if !haskey(d_weinberg,w2)
+          d_weinberg[w2] = nv(g_weinberg)+1
+          add_vertex!(g_weinberg)
+    end
+    add_edge!(g_weinberg,d_weinberg[w1],d_weinberg[w2])
+end
+
+
+Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
+w_tot = readin(Data_dir*"Ells/Ells_",10)
+append!(w_tot,readin(Data_dir*"PV/PoissonVoronoi_",10))
+append!(w_tot,readin(Data_dir*"Spheres/Spheres_",10))
+append!(w_tot,readin(Data_dir*"ExpData/Exp_",32))
+
+code_amalg = amalg2(w_tot)
+vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
+
+w_network = SimpleGraph(size(code_amalg,1))
+for i = 1:size(code_amalg,1)
+    w = code_amalg[i][1]
+    w_num = Meta.parse(w)
+    w_nb = w_vec_neighbors(Int.(w_num.args))
+    for nb in w_nb
+        if haskey(vector_to_idx,string(nb))
+            add_edge!(w_network,vector_to_idx[string(nb)],i)
+        end
+    end
+    if mod(i,100) == 0
+        println(i/size(code_amalg,1) * 100)
+    end
+end
+
+savegraph( Data_dir*"w_network.lgz", w_network)
+df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
+    index = [k for k in 1:size(code_amalg,1)])
+CSV.write(Data_dir*"w_network.txt",  df)
 
 #=
 function plot_a(g,x,y)
@@ -144,29 +262,8 @@ plotly()
 p = plot_a(g,x,y)
 =#
 
-x,y,fixed_vecs = tutte_embedding(g)
-order_mat = order_mat_find(g,x,y)
 
-
-
-cent_node = central_node(g)
-ds  = dijkstra_shortest_paths(g,cent_node)
-dist_to_cent = ds.dists
-for e in edges(g)
-    d = dst(e)
-    s = src(e)
-
-    v11,v21 = return_nbh_vertex(order_mat[s],d)
-    v22,v12 = return_nbh_vertex(order_mat[d],s)
-
-    if (v11 == v12) && (v21 == v22)
-        #println("A Flippable triangle")
-        if (dist_to_cent[d] == dist_to_cent[s]) &&
-            (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
-            #println("Don't flip!")
-        else
-            w_vec = weinberg_flip(g,cent_node,order_mat,d,s,v11,v21)
-            println(w_vec)
-        end
-    end
-end
+#=
+g = loadgraph("debug.lgz")
+gplot(g)
+=#

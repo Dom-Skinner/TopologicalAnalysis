@@ -130,8 +130,16 @@ function weinberg_find!(code_tot,S_tot,kk,g,order_mat)
 
     end
     sort!(vecs)
-    S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
-    code_tot[kk] =  copy(vecs[1])
+    try
+        S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
+        code_tot[kk] =  copy(vecs[1])
+
+    catch
+        savegraph("debug.lgz", g)
+        S_tot[kk] =  -1
+
+    end
+
 end
 
 #=
