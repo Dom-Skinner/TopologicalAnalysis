@@ -264,6 +264,6 @@ p = plot_a(g,x,y)
 
 
 #=
-g = loadgraph("debug.lgz")
+g = loadgraph(Data_dir*"w_network.lgz")
 gplot(g)
 =#

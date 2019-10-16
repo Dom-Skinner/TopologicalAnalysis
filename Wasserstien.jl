@@ -4,7 +4,7 @@ using LightGraphsFlows
 import LightGraphs
 const lg = LightGraphs
 using SparseArrays
-
+using Base.Threads
 using Clp: ClpSolver # use your favorite LP solver here
 
 
@@ -78,26 +78,43 @@ function W_dist(g_undirected,S)
     return sum(abs.(flow[1:Nv,1:Nv]))
 end
 
+
+function distance_mat(g,weight)
+    d = zeros(length(weight),length(weight))
+    for i = 1:size(d,1)
+    Threads.@threads for j=(i+1):size(d,2)
+                    W = weight[i] .- weight[j]
+                    d[i,j] = W_dist(g,sign(sum(W))*W + W*(sign(sum(W)) == 0))
+                    d[j,i] = d[i,j]
+                    #println("i= ",i, " j = ", j)
+                    #println(d[i,j])
+                end
+        println(100*i/size(d,1))
+    end
+    return d
+end
 g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph()
 
 Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
 w_ells = readin(Data_dir*"Ells/Ells_",10)
 w_spheres = readin(Data_dir*"Spheres/Spheres_",10)
 w_PV = readin(Data_dir*"PV/PoissonVoronoi_",10)
+w_exp = readin(Data_dir*"ExpData/Exp_",32)
 
 weight = []
-push!(weight,ret_weights(w_ells[1],N,W_code_to_idx,vmap))
-push!(weight,ret_weights(w_ells[2],N,W_code_to_idx,vmap))
-push!(weight,ret_weights(w_spheres[1],N,W_code_to_idx,vmap))
-push!(weight,ret_weights(w_spheres[2],N,W_code_to_idx,vmap))
-push!(weight,ret_weights(w_PV[1],N,W_code_to_idx,vmap))
-push!(weight,ret_weights(w_PV[2],N,W_code_to_idx,vmap))
-
-d = zeros(6,6)
-for i = 1:size(d,1), j=(i+1):size(d,2)
-    println("i= ",i, " j = ", j)
-    W = weight[i] .- weight[j]
-    d[i,j] = W_dist(g,sign(sum(W))*W + W*(sign(sum(W)) == 0))
-    d[j,i] = d[i,j]
-    println(d[i,j])
+color = []
+for i = 1:1
+    push!(weight,ret_weights(w_ells[i],N,W_code_to_idx,vmap))
+    push!(weight,ret_weights(w_spheres[i],N,W_code_to_idx,vmap))
+    push!(weight,ret_weights(w_PV[1],N,W_code_to_idx,vmap))
+    push!(weight,ret_weights(w_exp[1],N,W_code_to_idx,vmap))
+    append!(color,[1;2;3;4])
 end
+
+d = distance_mat(g,weight)
+
+using MultivariateStats
+using Plots
+
+Out = permutedims(classical_mds(d,2))
+scatter(Out[:,1],Out[:,2],color=[1;1;2;2;3;3;4;4],leg=false)
