@@ -64,10 +64,10 @@ function W_dist(g_undirected,S)
     for i in 1:Nv
         if S[i] > 0
             lg.add_edge!(g,Nv+1,i)
-            capacity[Nv+1,i] = S[i]
+            capacity[Nv+1,i] = S[i]*(1+5e-5)
         elseif S[i] < - 5e-6
             lg.add_edge!(g,i,Nv+2)
-            demand[i,Nv+2] = -S[i]
+            demand[i,Nv+2] = -S[i]*(1-5e-5)
             capacity[i,Nv+2] = 1.
 
         end
@@ -93,6 +93,17 @@ function distance_mat(g,weight)
     end
     return d
 end
+function plot_res(Out)
+    names = ["Ellipsoids","Spheres","Poisson-Voronoi","Experiments"]
+    p = scatter()
+    for i = 1:4
+        idx = 0:4:(size(Out,1)-4)
+        scatter!(p,Out[i.+idx,1],Out[i.+idx,2],color=i,label=names[i])
+    end
+    return p
+end
+
+
 g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph()
 
 Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
@@ -102,13 +113,11 @@ w_PV = readin(Data_dir*"PV/PoissonVoronoi_",10)
 w_exp = readin(Data_dir*"ExpData/Exp_",32)
 
 weight = []
-color = []
-for i = 1:1
+for i = 1:3
     push!(weight,ret_weights(w_ells[i],N,W_code_to_idx,vmap))
     push!(weight,ret_weights(w_spheres[i],N,W_code_to_idx,vmap))
-    push!(weight,ret_weights(w_PV[1],N,W_code_to_idx,vmap))
-    push!(weight,ret_weights(w_exp[1],N,W_code_to_idx,vmap))
-    append!(color,[1;2;3;4])
+    push!(weight,ret_weights(w_PV[i],N,W_code_to_idx,vmap))
+    push!(weight,ret_weights(w_exp[i],N,W_code_to_idx,vmap))
 end
 
 d = distance_mat(g,weight)
@@ -116,5 +125,5 @@ d = distance_mat(g,weight)
 using MultivariateStats
 using Plots
 
-Out = permutedims(classical_mds(d,2))
-scatter(Out[:,1],Out[:,2],color=[1;1;2;2;3;3;4;4],leg=false)
+Out = permutedims(transform(fit(MDS, d, maxoutdim=2, distances=true)))
+plot_res(Out)
