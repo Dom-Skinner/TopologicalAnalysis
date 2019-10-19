@@ -91,6 +91,19 @@ function distance_mat(g,weight)
                 end
         println(100*i/size(d,1))
     end
+    println("Catching exceptions")
+    #This is a HACK
+    for i = 1:size(d,1)
+    Threads.@threads for j=(i+1):size(d,2)
+                    if d[i,j] == 0
+                        W = weight[i] .- weight[j]
+                        d[i,j] = W_dist(g,-sign(sum(W))*W + W*(sign(sum(W)) == 0))
+                        d[j,i] = d[i,j]
+                    end
+                end
+        println(100*i/size(d,1))
+    end
+
     return d
 end
 function plot_res(Out)
@@ -113,7 +126,7 @@ w_PV = readin(Data_dir*"PV/PoissonVoronoi_",10)
 w_exp = readin(Data_dir*"ExpData/Exp_",32)
 
 weight = []
-for i = 1:3
+for i = 1:7
     push!(weight,ret_weights(w_ells[i],N,W_code_to_idx,vmap))
     push!(weight,ret_weights(w_spheres[i],N,W_code_to_idx,vmap))
     push!(weight,ret_weights(w_PV[i],N,W_code_to_idx,vmap))
@@ -126,4 +139,17 @@ using MultivariateStats
 using Plots
 
 Out = permutedims(transform(fit(MDS, d, maxoutdim=2, distances=true)))
-plot_res(Out)
+savefig(plot_res(Out),"MDS.pdf")
+
+function make_heatmap(d)
+    idx = [collect(1:4:28);collect(2:4:28);collect(3:4:28);collect(4:4:28)]
+    d2 = similar(d)
+    for i=1:28
+        for j = 1:28
+             d2[i,j] = d[idx[i],idx[j]]
+         end
+     end
+    p = heatmap(d2,colorbar_title="W distance",xlabel="Sample number",
+            ylabel="Sample number", dpi = 350,c=:BuGn)
+    savefig(p, "Corellation.png")
+end

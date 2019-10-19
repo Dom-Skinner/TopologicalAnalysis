@@ -1,5 +1,6 @@
 using LightGraphs
 using GraphPlot
+using Base.Threads
 using DataFrames,CSV
 include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/VoronoiTools.jl")
 using .VoronoiTools
@@ -7,7 +8,7 @@ include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/LocalCellularS
 using .LocalCellularStructure
 
 
-function center_test(g,v)
+function center_test1(g,v)
     g_ego1,vmap = induced_subgraph(g,neighborhood(g,v,1))
 
     for e in edges(g_ego1)
@@ -18,8 +19,23 @@ function center_test(g,v)
     return true
 end
 
-
-
+function center_test(g,v,ret)
+    edge_pts = []
+    for e in edges(g)
+        if length(intersect(neighbors(g,dst(e)),neighbors(g,src(e)))) == 1
+            push!(edge_pts,src(e))
+            push!(edge_pts,dst(e))
+        end
+    end
+    unique!(edge_pts)
+    rret = [];
+    for r in ret
+        if length(intersect(neighbors(g,r),edge_pts)) == 0
+             push!(rret,r)
+        end
+    end
+    return rret
+end
 
 function central_node(g)
     N = nv(g)
@@ -30,33 +46,20 @@ function central_node(g)
         end
     end
     if length(ret) == 1
-        return ret[1]
+        return ret
     else
-        ret_idx = findall([center_test(g,r) for r in ret])
+        #=
+        ret_idx = findall([center_test1(g,r) for r in ret])
         if length(ret_idx) == 1
-            return ret[ret_idx[1]]
+            return [ret[ret_idx[1]]]
         end
-
-        println("Trying new method")
-        edge_pts = []
-        for e in edges(g)
-            if length(intersect(neighbors(g,dst(e)),neighbors(g,src(e)))) == 1
-                push!(edge_pts,src(e))
-                push!(edge_pts,dst(e))
-            end
-        end
-        unique!(edge_pts)
-        rret = [];
-        for r in ret
-            if length(intersect(neighbors(g,r),edge_pts)) == 0
-                 push!(rret,r)
-            end
-        end
+        =#
+        rret = center_test(g,v,ret)
         if length(rret) != 1
             savegraph("debug.lgz", g)
-            println("Couldn't find central node (so guessed)")
+            #println("Multiple choices for central node!")
         end
-        return rret[1]
+        return rret
 
     end
 end
@@ -144,6 +147,7 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
     end
     weinberg_find!(code_tot,S_tot,1,g_ego,order_local)
     if S_tot[1] == -1
+        # This is bad
         println(order_mat)
         println(order_copy)
         println(order_local)
@@ -183,71 +187,69 @@ function w_vec_neighbors(w_in)
     x,y,fixed_vecs = tutte_embedding(g)
     order_mat = order_mat_find(g,x,y)
 
-    cent_node = central_node(g)
-    ds  = dijkstra_shortest_paths(g,cent_node)
-    dist_to_cent = ds.dists
-    for e in edges(g)
-        d = dst(e)
-        s = src(e)
+    cent_nodes = central_node(g)
+    for cent_node in cent_nodes
+        ds  = dijkstra_shortest_paths(g,cent_node)
+        dist_to_cent = ds.dists
+        for e in edges(g)
+            d = dst(e)
+            s = src(e)
 
-        v11,v21 = return_nbh_vertex(order_mat[s],d)
-        v22,v12 = return_nbh_vertex(order_mat[d],s)
+            v11,v21 = return_nbh_vertex(order_mat[s],d)
+            v22,v12 = return_nbh_vertex(order_mat[d],s)
 
-        if (v11 == v12) && (v21 == v22)
-            #println("A Flippable triangle")
-            if (dist_to_cent[d] == dist_to_cent[s]) &&
-                (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
-                #println("Don't flip!")
-            else
-                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
+            if (v11 == v12) && (v21 == v22)
+                #println("A Flippable triangle")
+                if (dist_to_cent[d] == dist_to_cent[s]) &&
+                    (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
+                    #println("Don't flip!")
+                else
+                    push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
+                end
             end
         end
     end
     return w_neighbors
 end
 
+function compute_flip_graph(code_amalg,save_str)
+    vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
 
-function link_w!(g_weinberg,d_weinberg,w1,w2)
-    if !haskey(d_weinberg,w1)
-          d_weinberg[w1] = nv(g_weinberg)+1
-          add_vertex!(g_weinberg)
+    const splock = SpinLock()
+    w_network = SimpleGraph(size(code_amalg,1))
+    Threads.@threads for i = 1:size(code_amalg,1)
+        w = code_amalg[i][1]
+        w_num = Meta.parse(w)
+        w_nb = w_vec_neighbors(Int.(w_num.args))
+
+        lock(splock)
+        for nb in w_nb
+            if haskey(vector_to_idx,string(nb))
+                add_edge!(w_network,vector_to_idx[string(nb)],i)
+            end
+        end
+        unlock(splock)
+
     end
-    if !haskey(d_weinberg,w2)
-          d_weinberg[w2] = nv(g_weinberg)+1
-          add_vertex!(g_weinberg)
-    end
-    add_edge!(g_weinberg,d_weinberg[w1],d_weinberg[w2])
+
+    savegraph( save_str*".lgz", w_network)
+    df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
+        index = [k for k in 1:size(code_amalg,1)])
+    CSV.write(save_str*".txt",  df)
 end
 
 
 Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
-w_tot = readin(Data_dir*"Ells/Ells_",10)
-append!(w_tot,readin(Data_dir*"PV/PoissonVoronoi_",10))
-append!(w_tot,readin(Data_dir*"Spheres/Spheres_",10))
-append!(w_tot,readin(Data_dir*"ExpData/Exp_",32))
+w_tot = readin(Data_dir*"PV/PoissonVoronoi_",1)
+
+#w_tot = readin(Data_dir*"Ells/Ells_",10)
+#append!(w_tot,readin(Data_dir*"PV/PoissonVoronoi_",10))
+#append!(w_tot,readin(Data_dir*"Spheres/Spheres_",10))
+#append!(w_tot,readin(Data_dir*"ExpData/Exp_",32))
 
 code_amalg = amalg2(w_tot)
-vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
-
-w_network = SimpleGraph(size(code_amalg,1))
-for i = 1:size(code_amalg,1)
-    w = code_amalg[i][1]
-    w_num = Meta.parse(w)
-    w_nb = w_vec_neighbors(Int.(w_num.args))
-    for nb in w_nb
-        if haskey(vector_to_idx,string(nb))
-            add_edge!(w_network,vector_to_idx[string(nb)],i)
-        end
-    end
-    if mod(i,100) == 0
-        println(i/size(code_amalg,1) * 100)
-    end
-end
-
-savegraph( Data_dir*"w_network.lgz", w_network)
-df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
-    index = [k for k in 1:size(code_amalg,1)])
-CSV.write(Data_dir*"w_network.txt",  df)
+save_str = Data_dir*"w_network_t"
+compute_flip_graph(code_amalg,save_str)
 
 #=
 function plot_a(g,x,y)
