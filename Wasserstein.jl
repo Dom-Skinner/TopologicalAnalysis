@@ -8,29 +8,24 @@ using Base.Threads
 using Clp: ClpSolver # use your favorite LP solver here
 
 
-include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/VoronoiTools.jl")
-using .VoronoiTools
-include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/LocalCellularStructure.jl")
-using .LocalCellularStructure
 
 
 function ret_weights(dict_w,N,W_code_to_idx,vmap)
+    # Find the distribution of networks in the connected comp of the flip graph
     weight_arr = zeros(Float64,N)
     key_arr = collect(keys(dict_w))
     for k in key_arr
         weight_arr[W_code_to_idx[k]] = dict_w[k]
     end
-    println(sum(weight_arr))
     weight_arr = weight_arr[vmap]
-    println(sum(weight_arr))
     return weight_arr./sum(weight_arr)
 end
 
-function load_w_graph()
-    Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
-    g = lg.loadgraph(Data_dir*"w_network.lgz")
+function load_w_graph(network_save_file)
+    # Wrapper to load the flip graph, and to reduce to the largest connected comp
+    g = lg.loadgraph(network_save_file*".lgz")
     #gplot(g)
-    dat_in = CSV.read(Data_dir*"w_network.txt")
+    dat_in = CSV.read(network_save_file*".txt")
     W_code_to_idx = Dict(dat_in.codes .=> dat_in.index)
     W_idx_to_code = Dict(dat_in.index .=> dat_in.codes)
 
@@ -72,7 +67,7 @@ function W_dist(g_undirected,S)
 
         end
     end
-
+    # call min cost flow
     flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, ClpSolver(),
                 edge_demand=demand, source_nodes=[Nv+1], sink_nodes=[Nv+2])
     return sum(abs.(flow[1:Nv,1:Nv]))
@@ -106,25 +101,19 @@ function distance_mat(g,weight)
 
     return d
 end
-function plot_res(Out)
-    names = ["Ellipsoids","Spheres","Poisson-Voronoi","Experiments"]
-    p = scatter()
-    for i = 1:4
-        idx = 0:4:(size(Out,1)-4)
-        scatter!(p,Out[i.+idx,1],Out[i.+idx,2],color=i,label=names[i])
-    end
-    return p
+
+function calculate_distance_matrix(network_save_file,w_vec_in)
+    # This function is a wrapper for all other functions in this file
+    # from n dictionaries in and the path to the load_graph file it returns the
+    # n by n distance matrix
+    g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
+    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
+
+    return distance_mat(g,weight)
 end
 
 
-g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph()
-
-Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
-w_ells = readin(Data_dir*"Ells/Ells_",10)
-w_spheres = readin(Data_dir*"Spheres/Spheres_",10)
-w_PV = readin(Data_dir*"PV/PoissonVoronoi_",10)
-w_exp = readin(Data_dir*"ExpData/Exp_",32)
-
+#=
 weight = []
 for i = 1:7
     push!(weight,ret_weights(w_ells[i],N,W_code_to_idx,vmap))
@@ -132,9 +121,9 @@ for i = 1:7
     push!(weight,ret_weights(w_PV[i],N,W_code_to_idx,vmap))
     push!(weight,ret_weights(w_exp[i],N,W_code_to_idx,vmap))
 end
+=#
 
-d = distance_mat(g,weight)
-
+#=
 using MultivariateStats
 using Plots
 
@@ -153,3 +142,13 @@ function make_heatmap(d)
             ylabel="Sample number", dpi = 350,c=:BuGn)
     savefig(p, "Corellation.png")
 end
+function plot_res(Out)
+    names = ["Ellipsoids","Spheres","Poisson-Voronoi","Experiments"]
+    p = scatter()
+    for i = 1:4
+        idx = 0:4:(size(Out,1)-4)
+        scatter!(p,Out[i.+idx,1],Out[i.+idx,2],color=i,label=names[i])
+    end
+    return p
+end
+=#

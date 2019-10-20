@@ -5,6 +5,9 @@ include("ReadWriteTools.jl")
 include("VoronoiTools.jl")
 using .VoronoiTools
 
+include("WassersteinTools.jl")
+using .WassersteinTools
+
 function weinberg2D_wrap(Positions, Data_dir_str,periodic=false)
     if periodic
         Weinberg,S = weinberg2D(deepcopy(Positions),periodic)
@@ -16,5 +19,6 @@ function weinberg2D_wrap(Positions, Data_dir_str,periodic=false)
     write_avg(countmap(Weinberg),Data_dir_str)
 end
 
-export readin!, readin, amalg2, weinberg2D_wrap
+export readin!, readin, amalg2, weinberg2D_wrap, compute_flip_graph,
+        calculate_distance_matrix
 end

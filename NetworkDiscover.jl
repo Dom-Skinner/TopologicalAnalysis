@@ -1,25 +1,13 @@
 using LightGraphs
-using GraphPlot
 using Base.Threads
 using DataFrames,CSV
-include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/VoronoiTools.jl")
-using .VoronoiTools
-include("/Users/Dominic/Documents/2d Cells/LocalCellularStructure/LocalCellularStructure.jl")
-using .LocalCellularStructure
 
 
-function center_test1(g,v)
-    g_ego1,vmap = induced_subgraph(g,neighborhood(g,v,1))
 
-    for e in edges(g_ego1)
-        if length(intersect(neighbors(g,vmap[dst(e)]),neighbors(g,vmap[src(e)]))) == 1
-            return false
-        end
-    end
-    return true
-end
-
-function center_test(g,v,ret)
+function center_test(g,ret)
+    # Tests the points ret to see if they could be the central node. First find
+    # The edges to see if they are at the edge of the network. The central node
+    # should not be neighbors with any points attached to one of these edges
     edge_pts = []
     for e in edges(g)
         if length(intersect(neighbors(g,dst(e)),neighbors(g,src(e)))) == 1
@@ -38,6 +26,8 @@ function center_test(g,v,ret)
 end
 
 function central_node(g)
+    # Central node should be the point that is distance ≦ 2 from all other
+    # points. If there are multiple such points, apply function center_test
     N = nv(g)
     ret = []
     for i = 1:N
@@ -48,19 +38,8 @@ function central_node(g)
     if length(ret) == 1
         return ret
     else
-        #=
-        ret_idx = findall([center_test1(g,r) for r in ret])
-        if length(ret_idx) == 1
-            return [ret[ret_idx[1]]]
-        end
-        =#
-        rret = center_test(g,v,ret)
-        if length(rret) != 1
-            savegraph("debug.lgz", g)
-            #println("Multiple choices for central node!")
-        end
+        rret = center_test(g,ret)
         return rret
-
     end
 end
 
@@ -158,6 +137,7 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
 end
 
 function order_mat_find(g,x,y)
+    # Finds the order mat given the graph and it's embedding
     order_mat = Vector{Array{Int64}}(undef,nv(g))
     for kk = 1:nv(g)
         N_list = neighbors(g,kk)
@@ -179,11 +159,15 @@ end
 
 
 function w_vec_neighbors(w_in)
+    # This function takes a weinberg vector and creates finds all other weinberg
+    # vectors that are 1 flip away while also increasing the disntance from central node
     w_neighbors = []
     g = SimpleGraph(maximum(w_in))
     for i = 1:(length(w_in)-1)
         add_edge!(g,w_in[i],w_in[i+1])
     end
+
+    # need to do the embedding to find the order mat
     x,y,fixed_vecs = tutte_embedding(g)
     order_mat = order_mat_find(g,x,y)
 
@@ -198,6 +182,9 @@ function w_vec_neighbors(w_in)
             v11,v21 = return_nbh_vertex(order_mat[s],d)
             v22,v12 = return_nbh_vertex(order_mat[d],s)
 
+            # We have picked something that looks flippable. We test if it is and
+            # then call weinberg_flip to find the w-vector after the flip. NB!!
+            # weinberg_flip might decide to not flip and will return [-1]
             if (v11 == v12) && (v21 == v22)
                 #println("A Flippable triangle")
                 if (dist_to_cent[d] == dist_to_cent[s]) &&
@@ -215,7 +202,7 @@ end
 function compute_flip_graph(code_amalg,save_str)
     vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
 
-    const splock = SpinLock()
+    splock = SpinLock()
     w_network = SimpleGraph(size(code_amalg,1))
     Threads.@threads for i = 1:size(code_amalg,1)
         w = code_amalg[i][1]
@@ -239,33 +226,11 @@ function compute_flip_graph(code_amalg,save_str)
 end
 
 
+#=
+# Here is an example as to how to use the functions in this file
 Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
 w_tot = readin(Data_dir*"PV/PoissonVoronoi_",1)
-
-#w_tot = readin(Data_dir*"Ells/Ells_",10)
-#append!(w_tot,readin(Data_dir*"PV/PoissonVoronoi_",10))
-#append!(w_tot,readin(Data_dir*"Spheres/Spheres_",10))
-#append!(w_tot,readin(Data_dir*"ExpData/Exp_",32))
-
 code_amalg = amalg2(w_tot)
 save_str = Data_dir*"w_network_t"
 compute_flip_graph(code_amalg,save_str)
-
-#=
-function plot_a(g,x,y)
-    p = scatter(x,y)
-
-    for e in edges(g)
-        plot!(p,[x[src(e)];x[dst(e)]], [y[src(e)];y[dst(e)]],leg=false)
-    end
-    return p
-end
-plotly()
-p = plot_a(g,x,y)
-=#
-
-
-#=
-g = loadgraph(Data_dir*"w_network.lgz")
-gplot(g)
 =#
