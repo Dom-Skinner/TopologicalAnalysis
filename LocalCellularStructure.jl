@@ -20,5 +20,5 @@ function weinberg2D_wrap(Positions, Data_dir_str,periodic=false)
 end
 
 export readin!, readin, amalg2, weinberg2D_wrap, compute_flip_graph,
-        calculate_distance_matrix
+        calculate_distance_matrix,calculate_distance_matrix_parallel,W_dist
 end

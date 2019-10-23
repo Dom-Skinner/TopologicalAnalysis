@@ -12,5 +12,6 @@ include("ReadWriteTools.jl")
 include("NetworkDiscover.jl")
 include("Wasserstein.jl")
 
-export compute_flip_graph, calculate_distance_matrix
+export compute_flip_graph, calculate_distance_matrix,
+        calculate_distance_matrix_parallel,W_dist
 end

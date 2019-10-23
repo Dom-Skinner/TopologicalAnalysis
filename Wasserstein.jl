@@ -1,4 +1,3 @@
-using GraphPlot
 using CSV,DataFrames
 using LightGraphsFlows
 import LightGraphs
@@ -15,7 +14,9 @@ function ret_weights(dict_w,N,W_code_to_idx,vmap)
     weight_arr = zeros(Float64,N)
     key_arr = collect(keys(dict_w))
     for k in key_arr
-        weight_arr[W_code_to_idx[k]] = dict_w[k]
+        if haskey(W_code_to_idx,k)
+            weight_arr[W_code_to_idx[k]] = dict_w[k]
+        end
     end
     weight_arr = weight_arr[vmap]
     return weight_arr./sum(weight_arr)
@@ -112,6 +113,13 @@ function calculate_distance_matrix(network_save_file,w_vec_in)
     return distance_mat(g,weight)
 end
 
+function calculate_distance_matrix_parallel(network_save_file,w_vec_in)
+    # If we want to write our own parallel distance matrix function
+    g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
+    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
+
+    return g,weight
+end
 
 #=
 weight = []
