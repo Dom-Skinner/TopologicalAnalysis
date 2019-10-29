@@ -1,6 +1,7 @@
 module LocalCellularStructure
 
 include("ReadWriteTools.jl")
+include("DistanceTools.jl")
 
 include("VoronoiTools.jl")
 using .VoronoiTools
@@ -19,6 +20,9 @@ function weinberg2D_wrap(Positions, Data_dir_str,periodic=false)
     write_avg(countmap(Weinberg),Data_dir_str)
 end
 
+
+
 export readin!, readin, amalg2, weinberg2D_wrap, compute_flip_graph,
-        calculate_distance_matrix,calculate_distance_matrix_parallel,W_dist
+        calculate_distance_matrix,calculate_distance_matrix_parallel,
+        W_dist, subsample_dist, weight_in,fill_W_distance_mat,fill_JS_distance_mat
 end

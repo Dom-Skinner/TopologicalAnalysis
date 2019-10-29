@@ -3,7 +3,7 @@ using Base.Threads
 using DataFrames,CSV
 
 
-
+#=
 function center_test(g,ret)
     # Tests the points ret to see if they could be the central node. First find
     # The edges to see if they are at the edge of the network. The central node
@@ -42,7 +42,7 @@ function central_node(g)
         return rret
     end
 end
-
+=#
 function tutte_embedding(g)
     # This function creates a Tutte embedding of the graph.
     fixed_vecs = []
@@ -112,8 +112,7 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
     # Now we use the induced induced_subgraph to compute the weinberg
     code_tot = Vector{Array{Int64}}(undef,1)
     S_tot = Array{Int64}(undef,1)
-    nbh  = neighborhood(g2,cent_node,2)
-    g_ego, vmap = induced_subgraph(g2,nbh)
+    g_ego, vmap = induced_subgraph(g2,neighborhood(g2,cent_node,2))
     vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
     order_local = order_copy[vmap]
     for i = 1:length(vmap)
@@ -124,12 +123,9 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
         # don't flip!!
         return [-1]
     end
-    weinberg_find!(code_tot,S_tot,1,g_ego,order_local)
+    weinberg_find!(code_tot,S_tot,1,g_ego,order_local,vmap_inv[cent_node])
     if S_tot[1] == -1
         # This is bad
-        println(order_mat)
-        println(order_copy)
-        println(order_local)
         savegraph( "debug2.lgz", g)
         error("..")
     end
@@ -171,28 +167,25 @@ function w_vec_neighbors(w_in)
     x,y,fixed_vecs = tutte_embedding(g)
     order_mat = order_mat_find(g,x,y)
 
-    cent_nodes = central_node(g)
-    for cent_node in cent_nodes
-        ds  = dijkstra_shortest_paths(g,cent_node)
-        dist_to_cent = ds.dists
-        for e in edges(g)
-            d = dst(e)
-            s = src(e)
+    cent_node = 1
+    dist_to_cent = (dijkstra_shortest_paths(g,cent_node)).dists
+    for e in edges(g)
+        d = dst(e)
+        s = src(e)
 
-            v11,v21 = return_nbh_vertex(order_mat[s],d)
-            v22,v12 = return_nbh_vertex(order_mat[d],s)
+        v11,v21 = return_nbh_vertex(order_mat[s],d)
+        v22,v12 = return_nbh_vertex(order_mat[d],s)
 
-            # We have picked something that looks flippable. We test if it is and
-            # then call weinberg_flip to find the w-vector after the flip. NB!!
-            # weinberg_flip might decide to not flip and will return [-1]
-            if (v11 == v12) && (v21 == v22)
-                #println("A Flippable triangle")
-                if (dist_to_cent[d] == dist_to_cent[s]) &&
-                    (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
-                    #println("Don't flip!")
-                else
-                    push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
-                end
+        # We have picked something that looks flippable. We test if it is and
+        # then call weinberg_flip to find the w-vector after the flip. NB!!
+        # weinberg_flip might decide to not flip and will return [-1]
+        if (v11 == v12) && (v21 == v22)
+            #println("A Flippable triangle")
+            if (dist_to_cent[d] == dist_to_cent[s]) &&
+                (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
+                #println("Don't flip!")
+            else
+                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
             end
         end
     end
@@ -205,6 +198,7 @@ function compute_flip_graph(code_amalg,save_str)
     splock = SpinLock()
     w_network = SimpleGraph(size(code_amalg,1))
     Threads.@threads for i = 1:size(code_amalg,1)
+
         w = code_amalg[i][1]
         w_num = Meta.parse(w)
         w_nb = w_vec_neighbors(Int.(w_num.args))

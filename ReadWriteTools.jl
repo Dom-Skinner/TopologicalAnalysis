@@ -17,6 +17,22 @@ function readin(Data_dir_str,N)
     return W_arr
 end
 
+function readin(Data_dir_str)
+    Data_dir =  SubString(Data_dir_str,1,findlast("/", Data_dir_str)[1] )
+    str =  SubString(Data_dir_str,(findlast("/", Data_dir_str)[1] +1),length(Data_dir_str))
+    DIR = readdir(Data_dir)
+    header = [occursin(str,d)  for d in DIR]
+    tail = [SubString(d,(length(d)-6):length(d)) for d in DIR]
+    avg_files = DIR[header .& (tail.=="avg.txt")]
+    Nums = sort!([parse(Int64,chop(s,head=length(str),tail=8)) for s in avg_files])
+    W_arr = Array{Dict}(undef,0)
+    for i in Nums
+        dat_in = CSV.read(Data_dir_str*string(i)*"_avg.txt")
+        push!(W_arr,Dict(dat_in.codes .=> dat_in.freq))
+    end
+    return W_arr
+end
+
 function amalg2(w_tot)
     count_tot = Dict{String,Int64}()
     for i = 1:length(w_tot)

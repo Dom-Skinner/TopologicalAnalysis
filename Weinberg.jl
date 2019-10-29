@@ -120,14 +120,14 @@ function weinberg_find(g,order_mat)
     return vecs[1], S
 end
 =#
-function weinberg_find!(code_tot,S_tot,kk,g,order_mat)
+function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
     g_aug = augmented_graph(g)
-
     vecs = Array{Int64}[]
     for e in edges(g_aug)
-        append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=true)])
-        append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=false)])
-
+        if (cent_node < 0) || (src(e) == cent_node)
+            append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=true)])
+            append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=false)])
+        end
     end
     sort!(vecs)
     try
@@ -188,7 +188,7 @@ function weinberg2D_core(g,order_mat,N)
             total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
             order_local[i] = total_order[total_order .> 0]
         end
-        weinberg_find!(code_tot,S_tot,k,g_ego,order_local)
+        weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
     end
     return code_tot,S_tot
 end
