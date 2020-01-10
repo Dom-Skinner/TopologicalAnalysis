@@ -71,3 +71,11 @@ function write_avg(Weinberg,Data_dir_str)
     df = DataFrame(codes = collect(keys(Weinberg)), freq = collect(values(Weinberg)))
     CSV.write(Data_dir_str*"_avg.txt",  df)
 end
+
+function get_files_dir(Data_dir)
+      # Get all relevant file names in a directory
+      DIR = readdir(Data_dir)
+      str_arr = DIR[[occursin("_avg.txt",d) for d in DIR]]
+      str_arr = [String(SubString(d,1:(length(d)-10))) for d in str_arr].*"_"
+      return  str_arr
+end

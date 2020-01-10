@@ -9,11 +9,11 @@ using .VoronoiTools
 include("WassersteinTools.jl")
 using .WassersteinTools
 
-function weinberg2D_wrap(Positions, Data_dir_str,periodic=false)
+function weinberg2D_wrap(Positions, Data_dir_str; periodic=false, r=2)
     if periodic
-        Weinberg,S = weinberg2D(deepcopy(Positions),periodic)
+        Weinberg,S = weinberg2D(deepcopy(Positions),periodic,r)
     else
-        Weinberg,S,idx = weinberg2D(deepcopy(Positions),periodic)
+        Weinberg,S,idx = weinberg2D(deepcopy(Positions),periodic,r)
         Positions = Positions[idx]
     end
     write_total(Positions, Weinberg,S,Data_dir_str)
@@ -24,5 +24,6 @@ end
 
 export readin!, readin, amalg2, weinberg2D_wrap, compute_flip_graph,
         calculate_distance_matrix,calculate_distance_matrix_parallel,
-        W_dist, subsample_dist, weight_in,fill_W_distance_mat,fill_JS_distance_mat
+        W_dist, subsample_dist, weight_in, get_files_dir,
+        fill_W_distance_mat,fill_JS_distance_mat,fill_SN_distance_mat
 end

@@ -55,3 +55,24 @@ function subsample_dist(w_in,M)
     end
     return w_subsampled
 end
+
+function fill_SN_distance_mat(weight)
+    # This function calculates a simple L2 distance based on the number of sides
+    s_tot = []
+    for i = 1:length(weight)
+    s_vec = zeros(20)
+    w_in = [Int.(Meta.parse(w).args) for w in collect(keys(weight[i]))]
+    freq = collect(values(weight[i]))
+    for j in 1:length(w_in)
+        s_vec[sum(w_in[j] .== 1) - 1] += freq[j]
+    end
+    push!(s_tot,s_vec./sum(s_vec))
+    end
+
+    D = zeros(length(weight),length(weight))
+    for i = 1:length(weight),j=(i+1):length(weight)
+        D[i,j] = sqrt.(sum(abs2,s_tot[i].-s_tot[j]))
+        D[j,i] = D[i,j]
+    end
+    return D
+end

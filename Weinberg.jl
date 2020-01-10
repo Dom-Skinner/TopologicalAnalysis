@@ -175,12 +175,12 @@ function edge_neighbors(g,edge_index)
 end
 
 
-function weinberg2D_core(g,order_mat,N)
+function weinberg2D_core(g,order_mat,N,r=2)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
 
     for k in 1:nv(g)
-        nbh  = neighborhood(g,k,2)
+        nbh  = neighborhood(g,k,r)
         g_ego, vmap = induced_subgraph(g,nbh)
         vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
         order_local = order_mat[vmap]
@@ -193,7 +193,7 @@ function weinberg2D_core(g,order_mat,N)
     return code_tot,S_tot
 end
 
-function weinberg2D(Positions,periodic=false)
+function weinberg2D(Positions,periodic=false,r=2)
     N = length(Positions)
     index_ref = [x for x in 1:N]
     if periodic; periodic_extend!(Positions,index_ref); end
@@ -220,11 +220,11 @@ function weinberg2D(Positions,periodic=false)
     g_period = graph_construct(simplices_period,N)
 
     if periodic
-        return weinberg2D_core(g_period,order_mat,N)
+        return weinberg2D_core(g_period,order_mat,N,r)
     else
         e_2 = edge_neighbors(g_period,edge_index)
         idx = setdiff(1:nv(g_period), e_2)
-        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N)
+        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N,r)
         return code_tot[idx], S_tot[idx], idx
     end
 end

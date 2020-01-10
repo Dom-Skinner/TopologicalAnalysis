@@ -79,7 +79,7 @@ function alpha_shape_eval!(neighbours,simplices,p)
          alpha_shape2D!(α_val,simplices,p)
     end
 
-    α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted 
+    α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
     println("using alpha = ",α) # if there are density variations
 
     for s in 1:length(neighbours)
@@ -152,7 +152,7 @@ end
 
 
 
-function periodic_extend!(Coords,ref,tol=0.2)
+function periodic_extend!(Coords,ref,tol=0.4)
     # Applies the periodic boundary conditions so that no boundary effects apply
     # to any of the original N points.
     if length(Coords[1]) == 2

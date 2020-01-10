@@ -55,7 +55,16 @@ function tutte_embedding(g)
         end
     end
     if length(fixed_vecs) != 3
-        error("TODO: code the degenerate case...")
+        for e in edges(g)
+            println(e)
+        end
+        for e in edges(g)
+            push!(fixed_vecs,src(e))
+            push!(fixed_vecs,dst(e))
+            push!(fixed_vecs,intersect(neighbors(g,src(e)),neighbors(g,dst(e)))[1])
+            break
+        end
+        println("TODO: code the degenerate case...")
         # degenerate case being when there are no edges attached to only a single triangle
     end
     A = float(adjacency_matrix(g))
@@ -96,7 +105,7 @@ function circ_insert!(M,pair_set,val)
     end
 end
 
-function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
+function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2,r)
 
     # First we perform the flipping procedure on vertices d,s,v1,v2, updating
     # the graph and the order matrices
@@ -112,7 +121,7 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2)
     # Now we use the induced induced_subgraph to compute the weinberg
     code_tot = Vector{Array{Int64}}(undef,1)
     S_tot = Array{Int64}(undef,1)
-    g_ego, vmap = induced_subgraph(g2,neighborhood(g2,cent_node,2))
+    g_ego, vmap = induced_subgraph(g2,neighborhood(g2,cent_node,r))
     vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
     order_local = order_copy[vmap]
     for i = 1:length(vmap)
@@ -154,7 +163,7 @@ function return_nbh_vertex(order_arr,v)
 end
 
 
-function w_vec_neighbors(w_in)
+function w_vec_neighbors(w_in,r)
     # This function takes a weinberg vector and creates finds all other weinberg
     # vectors that are 1 flip away while also increasing the disntance from central node
     w_neighbors = []
@@ -185,31 +194,32 @@ function w_vec_neighbors(w_in)
                 (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
                 #println("Don't flip!")
             else
-                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21))
+                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21,r))
             end
         end
     end
     return w_neighbors
 end
 
-function compute_flip_graph(code_amalg,save_str)
+function compute_flip_graph(code_amalg,save_str;r=2)
     vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
 
-    splock = SpinLock()
+    #splock = SpinLock()
     w_network = SimpleGraph(size(code_amalg,1))
-    Threads.@threads for i = 1:size(code_amalg,1)
+    #Threads.@threads
+    for i = 1:size(code_amalg,1)
 
         w = code_amalg[i][1]
         w_num = Meta.parse(w)
-        w_nb = w_vec_neighbors(Int.(w_num.args))
+        w_nb = w_vec_neighbors(Int.(w_num.args),r)
 
-        lock(splock)
+    #    lock(splock)
         for nb in w_nb
             if haskey(vector_to_idx,string(nb))
                 add_edge!(w_network,vector_to_idx[string(nb)],i)
             end
         end
-        unlock(splock)
+    #    unlock(splock)
 
     end
 
