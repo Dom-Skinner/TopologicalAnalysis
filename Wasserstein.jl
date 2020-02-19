@@ -5,7 +5,7 @@ const lg = LightGraphs
 using SparseArrays
 using Base.Threads
 using Clp: ClpSolver # use your favorite LP solver here
-
+#using MathProgBase,Gurobi
 
 
 function ret_weights(dict_w,N,W_code_to_idx,vmap)
@@ -68,7 +68,7 @@ function W_dist(g_undirected,S)
         end
     end
     # call min cost flow
-    flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, ClpSolver(),
+    flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, ClpSolver(),#GurobiSolver(Presolve=0),#ClpSolver(),
                 edge_demand=demand, source_nodes=[Nv+1], sink_nodes=[Nv+2])
 
     return sum(abs.(flow[1:Nv,1:Nv]))

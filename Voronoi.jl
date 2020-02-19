@@ -3,7 +3,7 @@
 #https://graphics.stanford.edu/courses/cs268-11-spring/handouts/AlphaShapes/as_fisher.pdf
 
 using PyCall
-using LinearAlgebra: norm
+using LinearAlgebra: norm, det
 using Statistics: median
 scipy = pyimport("scipy.spatial.qhull")
 

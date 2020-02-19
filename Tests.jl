@@ -11,7 +11,7 @@ p, simplices, neighbours, edge_index = Delaunay_find(Positions)
 
 for k = 1:1000
     k_nbhd = find_nbhd(simplices,k)
-    topological_vec(k_nbhd,k)
+    tvec = topological_vec(k_nbhd,k)
 end
 
 using BenchmarkTools
@@ -22,15 +22,33 @@ Profile.clear()
 Profile.print()
 Juno.profiler()
 
-function find_nbhd(simplices,k)
-    N = size(simplices,1)
-    contains_k = falses(N)
-    @inbounds for j = 1:4, i=1:N
-        if k == simplices[i,j]
-            contains_k[i] = true
-        end
+
+k_nbhd = find_nbhd(simplices,5)
+tvec = topological_vec(k_nbhd,5)
+simplex = zeros(Int64,length(tvec),4)
+t_vec_to_simplex!(tvec,simplex)
+
+k_nbhd = [ 1 2 5 6; 1 2 4 6; 5 4 2 1; 5 4 1 3; 1 3 5 6; 1 6 4 3]
+
+tvec = topological_vec(k_nbhd,1)
+simplex = zeros(Int64,length(tvec),4)
+t_vec_to_simplex!(tvec,simplex)
+
+function perm_simplex!(nbhd)
+    P = randperm(length(unique(nbhd)))
+    for j=1:4,i=1:size(nbhd,1)
+        nbhd[i,j] = P[nbhd[i,j]]
     end
-    simplices[contains_k,:]
 end
 
-@btime find_nbhd(simplices,5)
+
+using Random,LightGraphs
+g = barabasi_albert(1000, 3, seed=123)
+is_connected(g)
+Random.seed!(123)
+ρ1 = rand(nv(g))
+ρ2 = rand(nv(g))
+ρ1 = ρ1/sum(ρ1)
+ρ2 = ρ2/sum(ρ2)
+approx = distance_mat_lap(g,[ρ1, ρ2])[1,2]
+exact = W_dist(g,ρ1 - ρ2)

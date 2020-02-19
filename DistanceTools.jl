@@ -14,14 +14,6 @@ function JS_div(dict1,dict2)
     return sqrt(sum_tot/(2*log(2)))
 end
 
-function weight_in(Data_dir,str_arr,m=-1)
-    if m > 0
-        return vcat([readin(Data_dir*s,m) for s in str_arr]...)
-    else
-        return vcat([readin(Data_dir*s) for s in str_arr]...)
-    end
-end
-
 function fill_JS_distance_mat(weight)
     d = zeros(length(weight),length(weight))
     for i = 1:length(weight), j= (i+1):length(weight)
@@ -56,6 +48,8 @@ function subsample_dist(w_in,M)
     return w_subsampled
 end
 
+#=
+===================================== DEPRICATED ===============================
 function fill_SN_distance_mat(weight)
     # This function calculates a simple L2 distance based on the number of sides
     s_tot = []
@@ -76,3 +70,5 @@ function fill_SN_distance_mat(weight)
     end
     return D
 end
+===================================== DEPRICATED ===============================
+=#
