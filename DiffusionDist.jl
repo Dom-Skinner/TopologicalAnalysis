@@ -1,11 +1,11 @@
 using LightGraphs
 using SparseArrays
 using LinearAlgebra
-
+using IterativeSolvers
 
 function rem_self_edges!(g)
     # Removes self loops
-    for e in edges(g)
+    for e in collect(edges(g))
         if src(e) == dst(e)
             rem_edge!(g,e)
         end
@@ -21,7 +21,8 @@ function distance_mat_lap(g,weight)
     for i = 1:size(d,1)
         for j=(i+1):size(d,2)
                     W = weight[i] .- weight[j]
-                    J = D' * (L \ W)
+                    #J = D' * (L \ W) # Gaussian elimination to memory intensive
+                    J = D' * minres(L , W)
                     d[i,j] = sum(abs.(J))
                     d[j,i] = d[i,j]
             end

@@ -50,5 +50,18 @@ Random.seed!(123)
 ρ2 = rand(nv(g))
 ρ1 = ρ1/sum(ρ1)
 ρ2 = ρ2/sum(ρ2)
+
+#= === To test iterative method vs Gaussian elimination
+rem_self_edges!(g)
+L = float.(laplacian_matrix(g))
+D = float.(incidence_matrix(g,oriented=true))
+W = ρ1 .- ρ2
+J = D' * minres(L , W)
+iter = sum(abs.(J))
+J = D' * (L \ W)
+gauss = sum(abs.(J))
+=#
+
+
 approx = distance_mat_lap(g,[ρ1, ρ2])[1,2]
 exact = W_dist(g,ρ1 - ρ2)
