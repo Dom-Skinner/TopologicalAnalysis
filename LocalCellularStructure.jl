@@ -62,7 +62,7 @@ export
 
         # For calculating distances
         calculate_distance_matrix,calculate_distance_matrix_parallel,
-        W_dist, fill_W_distance_mat,fill_JS_distance_mat,
+        W_dist,geodesic,geodesic_reg, fill_W_distance_mat,fill_JS_distance_mat,
         calculate_distance_matrix_lap,distance_mat_lap,
 
         fill_SN_distance_mat, # depricated
