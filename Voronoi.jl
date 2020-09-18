@@ -80,6 +80,8 @@ function alpha_shape_eval!(neighbours,simplices,p)
     end
 
     α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
+
+    #α = minimum([α;63.0]) # For the biofilms
     println("using alpha = ",α) # if there are density variations
 
     for s in 1:length(neighbours)

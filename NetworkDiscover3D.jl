@@ -1,7 +1,7 @@
 using LightGraphs
 using DataFrames, CSV
 using Base.Threads
-
+using StatsBase:mean
 function three_match(A,k,l)
     # finds if rows k and l of A share a face
     count = 0
@@ -420,7 +420,7 @@ function find_flip_graph3D(tvec_tot)
     g = SimpleGraph(length(tvec_tot))
     code_to_idx_orig = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
     code_to_idx = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
-    println(nv(g))
+    println("num vertices = ",nv(g))
     tvec_new = []
     splock = SpinLock()
     Threads.@threads for i = 1:length(tvec_tot)
@@ -446,7 +446,7 @@ function find_flip_graph3D(tvec_tot)
         unlock(splock)
 
     end
-    println(ne(g))
+    println("num edges = ",ne(g))
 
     # Now add the edges for the newly added vecs
     splock = SpinLock()
@@ -497,8 +497,8 @@ function find_flip_graph3D(tvec_tot)
         v_in_core = intersect([i for i = 1:core_v],g_comp[1])
         sum(weight[v_in_core])/sum(weight)
     =#
-    println(nv(g_new))
-    println(ne(g_new))
+    println("purged num vertices = ",nv(g_new))
+    println("purged num vertices = ",ne(g_new))
 
     return g_new
 end

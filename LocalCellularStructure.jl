@@ -1,5 +1,6 @@
 module LocalCellularStructure
 
+include("DistributionTools.jl")
 include("ReadWriteTools.jl")
 include("DistanceTools.jl")
 
@@ -63,10 +64,12 @@ export
         # For calculating distances
         calculate_distance_matrix,calculate_distance_matrix_parallel,
         W_dist, fill_W_distance_mat,fill_JS_distance_mat,
-        calculate_distance_matrix_lap,distance_mat_lap,
+        calculate_distance_matrix_lap,distance_mat_lap,geodesic_reg,
 
         fill_SN_distance_mat, # depricated
 
+        # Distribution tools
+        tvec_dist,moments_find,
         # Misc.
         subsample_dist
 end
