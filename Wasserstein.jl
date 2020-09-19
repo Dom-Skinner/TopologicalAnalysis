@@ -38,7 +38,7 @@ function load_w_graph(network_save_file)
     return g_con,vmap,lg.nv(g),W_code_to_idx,W_idx_to_code
 end
 
-function W_dist(g_undirected,S,ret_flow = false)
+function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
 
     # First create a directed version of g_undirected with edges in both
     # directions and capacities/costs equal to 1
@@ -61,10 +61,10 @@ function W_dist(g_undirected,S,ret_flow = false)
     for i in 1:Nv
         if S[i] > 0
             lg.add_edge!(g,Nv+1,i)
-            capacity[Nv+1,i] = S[i]*(1+5e-5)
-        elseif S[i] < - 5e-6
+            capacity[Nv+1,i] = S[i]*(1+tol)
+        elseif S[i] < - 0.1*tol
             lg.add_edge!(g,i,Nv+2)
-            demand[i,Nv+2] = -S[i]*(1-5e-5)
+            demand[i,Nv+2] = -S[i]*(1-tol)
             capacity[i,Nv+2] = 1.
 
         end
@@ -143,7 +143,7 @@ function geodesic(w1,w2,α,network_save_file,N)
 end
 
 function find_reg_geo(p0,p1,g,k)
-        flow = W_dist(g,p0 .- p1,true)
+        flow = W_dist(g,p0 .- p1,true;tol=0.0)
         flow[findall(flow .< 0)] .= 0
         flow = flow[1:length(p0),1:length(p0)]
         I,J,V = findnz(flow)
@@ -166,7 +166,7 @@ function find_reg_geo(p0,p1,g,k)
         con3 = q[:,1] == p0_v
         con4 = q[:,end] == p1_v
         con5 = F >= 0.0
-        con6 = sum(F) <= W1_cost*1.03
+        con6 = sum(F) <= W1_cost*1.08
         problem = minimize(obj_, [con1;con2;con3;con4;con5;con6])
         solve!(problem, () -> Mosek.Optimizer())
         println(problem.status)
