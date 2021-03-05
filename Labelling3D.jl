@@ -32,16 +32,103 @@ function add_labeled!(Orig::Array{Int64,2},to_label::Array{Int64,1},
     end
 end
 
-function fill_labels!(to_label::Array{Int64,1}, Orig::Array{Int64,2},
+
+function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
+
+    # If the standard algorithm fails to label the simplicial complex, we need
+    # to make another guess. We have to try all possible guesses from all possible
+    # initial starting points in i_save, p_save.
+
+    tvec_tot = []
+    N = length(unique(nbhd))
+    M = size(nbhd,1)
+    num_zero = zeros(Int64,M)
+    which_to_label = zeros(Int64,M)
+    sim_code = zeros(Int64,M)
+    Topological_vec = typemax(Int64)*ones(Int64,M)
+
+    perms_ = [[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2],[3;2;1]]
+    for kk = 1:length(i_save)
+        i = i_save[kk]
+        p = p_save[kk]
+        which_to_label .= 10
+        num_zero .= 4
+        sim_code .= 0
+        Topological_vec .= typemax(Int64)
+        Topological_vec[1] = 30
+
+        add_labeled!(nbhd,which_to_label,idx_loc[central_vertex],1,num_zero,sim_code)
+
+        for j in 1:3
+            add_labeled!(nbhd,which_to_label, idx_loc[nbhd[i,to_perm[i,perms_[p][j]]]],
+                            j+1,num_zero,sim_code)
+        end
+        num_zero[i] = -1
+        fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc)
+
+        # The above gets us to the starting point of i_save,p_save, where no more
+        # simplices can be labeled. We now try all possible guesses
+
+
+
+        N = length(unique(nbhd))
+        already_labeled = unique(nbhd[num_zero .== -1,:])
+        to_label = setdiff(unique(nbhd),already_labeled)
+
+        n_choice = minimum(num_zero[num_zero .> 0])
+        simp_choice = findall(x-> x==n_choice, num_zero)
+        if n_choice == 2
+            perms = [[1;2],[2;1]]
+        elseif n_choice == 3
+            perms = [[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2],[3;2;1]]
+        else
+            error()
+        end
+
+        which_to_label_cp = copy(which_to_label)
+        num_zero_cp = copy(num_zero)
+        sim_code_cp = copy(sim_code)
+        Topological_vec_cp = copy(Topological_vec)
+
+
+        for s in simp_choice
+            for p in perms
+                which_to_label_cp .= which_to_label
+                num_zero_cp .= num_zero
+                sim_code_cp .= sim_code
+                Topological_vec_cp .= Topological_vec
+
+                lab_next = nbhd[s,findall(x -> x∈ to_label, nbhd[s,:])]
+                add_labeled!(nbhd,which_to_label_cp,idx_loc[lab_next[p[1]]],
+                            length(already_labeled)+1,num_zero_cp,sim_code_cp)
+                add_labeled!(nbhd,which_to_label_cp,idx_loc[lab_next[p[2]]],
+                            length(already_labeled)+2,num_zero_cp,sim_code_cp)
+                            num_zero_cp[s] = -1
+
+                Topological_vec_cp[findlast(x-> x< typemax(Int64),Topological_vec_cp) .+ 1 ] = sim_code_cp[s]
+
+                fill_labels(which_to_label_cp,nbhd,num_zero_cp,sim_code_cp,N,Topological_vec_cp,idx_loc)
+
+                push!(tvec_tot,copy(Topological_vec_cp))
+            end
+        end
+    end
+    Topological_vec .= minimum(tvec_tot)
+end
+
+
+function fill_labels(to_label::Array{Int64,1}, Orig::Array{Int64,2},
             num_zero::Array{Int64,1},s_code::Array{Int64,1},N::Int64,Topological_vec,idx_loc)
     # This is the core function of the labeling algorithm. It assumes that the
     # first simplex has been chosen and labeled. The rest of the labeling now
     # procedes deterministically, but will terminate if the labeling is not less
     # than the current value of Topological_vec
-    N_sim_labeled = 1
+    N_sim_labeled = sum(num_zero .== -1)
+
     flag = 0
+    n_l  = length(unique(Orig[num_zero .== -1,:])) + 1
+    for n = n_l:N
     #@inbounds for n = 5:N
-    @inbounds for n = 5:N
         # Take the minimum val of s_code for all potential choices
         min_val = typemax(Int64)
         idx = 0
@@ -50,6 +137,18 @@ function fill_labels!(to_label::Array{Int64,1}, Orig::Array{Int64,2},
             if (num_zero[i] == 1) && (s_code[i] < min_val)
                 min_val = s_code[i]
                 idx = i
+            end
+        end
+        if idx == 0
+            if Topological_vec[N_sim_labeled+1] < typemax(Int64)
+                if flag == 1
+                    Topological_vec[N_sim_labeled+1:end] .= typemax(Int64)
+                    return true
+                else
+                    return false
+                end
+            else
+                return true
             end
         end
 
@@ -75,7 +174,7 @@ function fill_labels!(to_label::Array{Int64,1}, Orig::Array{Int64,2},
                     flag = 1
                     break
                 elseif just_labeled[i] > Topological_vec[N_sim_labeled+i]
-                    return
+                    return false
                 end
             end
         end
@@ -87,6 +186,7 @@ function fill_labels!(to_label::Array{Int64,1}, Orig::Array{Int64,2},
 
         N_sim_labeled += length(just_labeled)
     end
+    return true
 end
 
 function compare_fun!(A,B)
@@ -162,7 +262,8 @@ function topological_vec(k_nbhd,central_vertex;r=1)
     find_to_perm!(to_perm,nbhd,central_vertex,M)
     # idx_loc[i] contains an array of indices [x,y] s.t. nbhd[x,y] = i
     idx_loc = [findall(isequal(i),nbhd) for i in 1:N]
-
+    i_save = []
+    p_save = []
     for i = 1:M
         if to_perm[i,1] != 0
             for p in 1:6
@@ -177,12 +278,31 @@ function topological_vec(k_nbhd,central_vertex;r=1)
                                     j+1,num_zero,sim_code)
                 end
                 num_zero[i] = -1
-                fill_labels!(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc)
+                tvec_cp =  copy(Topological_vec)
+                optimal = fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc)
+
+                # For the degenerate case, we save all the initial configurations
+                # that give rise to the best possible start
+                if tvec_cp != Topological_vec
+                    i_save = []
+                    p_save = []
+                end
+
+                if optimal
+                    push!(i_save,i)
+                    push!(p_save,p)
+                end
+
 
                 #compare_fun!(Topological_vec,sim_code)
 
             end
         end
+    end
+    # if there are still unlabeled vertices, then we have to make another guess
+    # to finish labeling. Do this with function deg_case
+    if any(x-> x == typemax(Int64),Topological_vec)
+        Topological_vec = deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
     end
     return Topological_vec
 

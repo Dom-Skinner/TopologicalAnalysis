@@ -71,16 +71,16 @@ function alpha_shape3D!( α_val,simplices,p)
     end
 end
 
-function alpha_shape_eval!(neighbours,simplices,p)
-    α_val = zeros(length(simplices[:,1]))
+function alpha_shape_eval!(α_val,neighbours,simplices,p; α = 0)
+
     if size(p,2) == 3
         alpha_shape3D!(α_val,simplices,p)
     elseif size(p,2) == 2
          alpha_shape2D!(α_val,simplices,p)
     end
-
-    α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
-
+    if α == 0
+        α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
+    end
     #α = minimum([α;63.0]) # For the biofilms
     println("using alpha = ",α) # if there are density variations
 
@@ -90,6 +90,10 @@ function alpha_shape_eval!(neighbours,simplices,p)
                 neighbours[s] = -1.
             end
         end
+    end
+
+    for i = 1:length(α_val)
+        α_val[i] = α_val[i] < α
     end
 end
 
@@ -138,23 +142,25 @@ function Voronoi_find_shape(Positions)
    return index_points, regions, vert, ridge_vert, ridge_pts
 end
 
-function Delaunay_find(Positions)
+function Delaunay_find(Positions; α = 0)
     p = p_val(Positions)
     tri = scipy.Delaunay(p)
 
     simplices = tri.simplices.+1 # convert to julia indexing
     neighbours = tri.neighbors.+1
 
-    alpha_shape_eval!(neighbours,simplices,p)
+    α_val = zeros(length(simplices[:,1]))
+
+    alpha_shape_eval!(α_val,neighbours,simplices,p,α=α)
 
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
-    return p, simplices, neighbours, edge_index
+    return p, simplices, neighbours, edge_index,α_val
 end
 
 
 
-function periodic_extend!(Coords,ref,tol=0.4)
+function periodic_extend!(Coords,ref,tol=0.6)
     # Applies the periodic boundary conditions so that no boundary effects apply
     # to any of the original N points.
     if length(Coords[1]) == 2

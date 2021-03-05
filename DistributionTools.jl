@@ -3,11 +3,6 @@
 function tvec_dist(weight,dim="2D",N_ret=false)
     # find the distribution of tvecs lengths and probabilities
 
-    if dim != "2D"
-        error("TODO") # I have the 3D function somewhere, need to import it into
-        # this format.
-    end
-
     # Takes too long to parse as integers, so do everything as strings
     ky = collect(keys(weight))
     len = [length(unique(split(k[2:end-1],", "))) for k in ky]

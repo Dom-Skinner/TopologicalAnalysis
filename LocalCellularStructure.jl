@@ -13,29 +13,46 @@ using .WassersteinTools
 include("Tools3D.jl")
 using .Tools3D
 
-function weinberg2D_wrap(Positions, Data_dir_str; periodic=false, r=2)
+function weinberg2D_wrap(Positions, Data_dir_str; periodic=false, r=2, α = 0)
     if periodic
         Weinberg,S = weinberg2D(deepcopy(Positions),periodic,r)
     else
-        Weinberg,S,idx = weinberg2D(deepcopy(Positions),periodic,r)
+        Weinberg,S,idx = weinberg2D(deepcopy(Positions),periodic,r,α=α)
         Positions = Positions[idx]
     end
     write_total(Positions, Weinberg,S,Data_dir_str)
     write_avg(countmap(Weinberg),Data_dir_str)
 end
 
-function label_3D(Positions,Data_dir_str; r=1)
-    p, simplices, neighbrs, edge_index = Delaunay_find(Positions)
+function label_3D(Positions,Data_dir_str; r=1, edge_keep = false,α = 0)
+    p, simplices, neighbrs, edge_index,α_val = Delaunay_find(Positions, α = α)
     if r != 1
         error("Todo")
         # need to have better function for finding edge points if r > 1
     end
-    not_edge = setdiff(1:size(p,1), edge_index)
-    tvec_tot = Array{Int64}[]
-    for i in not_edge
-        k_nbhd = find_nbhd(simplices,i)
-        push!(tvec_tot,topological_vec(k_nbhd,i))
+    if edge_keep
+        not_edge = [i for i in 1:size(p,1)]
+        simplices = simplices[α_val .== 1,:]
+        println(Data_dir_str)
+    else
+        not_edge = setdiff(1:size(p,1), edge_index)
     end
+    tvec_tot = Array{Int64}[]
+    for i in 1:length(not_edge)
+
+            k_nbhd = find_nbhd(simplices,not_edge[i])
+            println("k_nbhd = ", k_nbhd)
+            if length(k_nbhd) > 0
+                push!(tvec_tot,topological_vec(k_nbhd,not_edge[i]))
+            else
+                not_edge[i] = -1
+            end
+
+            println(not_edge)
+
+
+    end
+    not_edge = not_edge[not_edge.>0]
     write_total(Positions[not_edge], tvec_tot,Data_dir_str)
     write_avg(countmap(tvec_tot),Data_dir_str)
 end
@@ -71,5 +88,5 @@ export
         # Distribution tools
         tvec_dist,moments_find,
         # Misc.
-        subsample_dist
+        subsample_dist, motif_size_find
 end
