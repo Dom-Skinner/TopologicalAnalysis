@@ -85,11 +85,11 @@ function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
             error()
         end
 
+
         which_to_label_cp = copy(which_to_label)
         num_zero_cp = copy(num_zero)
         sim_code_cp = copy(sim_code)
         Topological_vec_cp = copy(Topological_vec)
-
 
         for s in simp_choice
             for p in perms
@@ -99,10 +99,10 @@ function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
                 Topological_vec_cp .= Topological_vec
 
                 lab_next = nbhd[s,findall(x -> x∈ to_label, nbhd[s,:])]
-                add_labeled!(nbhd,which_to_label_cp,idx_loc[lab_next[p[1]]],
-                            length(already_labeled)+1,num_zero_cp,sim_code_cp)
-                add_labeled!(nbhd,which_to_label_cp,idx_loc[lab_next[p[2]]],
-                            length(already_labeled)+2,num_zero_cp,sim_code_cp)
+                for j = 1:length(p)
+                    add_labeled!(nbhd,which_to_label_cp,idx_loc[lab_next[p[j]]],
+                                length(already_labeled)+j,num_zero_cp,sim_code_cp)
+                end
                             num_zero_cp[s] = -1
 
                 Topological_vec_cp[findlast(x-> x< typemax(Int64),Topological_vec_cp) .+ 1 ] = sim_code_cp[s]
@@ -113,6 +113,7 @@ function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
             end
         end
     end
+
     Topological_vec .= minimum(tvec_tot)
 end
 
@@ -304,6 +305,17 @@ function topological_vec(k_nbhd,central_vertex;r=1)
     if any(x-> x == typemax(Int64),Topological_vec)
         Topological_vec = deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
     end
+    if (maximum(Topological_vec) < typemax(Int64)) && (length(Topological_vec) != length(unique(Topological_vec)))
+        println("tvec = ", Topological_vec)
+        println("simplex = ",nbhd)
+        println("central_vertex = ", central_vertex)
+        error()
+    end
+    #if maximum(Topological_vec) == typemax(Int64)
+        #println("tvec = ", Topological_vec)
+        #println("Simplex = ", nbhd)
+        #error()
+    #end
     return Topological_vec
 
 end

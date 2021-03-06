@@ -74,6 +74,7 @@ end
 
 function perform_3_flip(simplex,ijk,central_vertex; r = 1)
 
+
     keep = trues(size(simplex,1))
     for i in ijk
         keep[i] = false
@@ -107,7 +108,7 @@ function perform_3_flip(simplex,ijk,central_vertex; r = 1)
         new_simplex = [new_simplex; row1';row2']
     end
 
-    tvec = topological_vec(new_simplex,central_vertex,r=r)
+    tvec = topological_vec(unique(new_simplex,dims=1),central_vertex,r=r)
     for j = 2:length(tvec)
         if tvec[j-1] == tvec[j]
             # Can't flip as there is a parallel tetrahedron
@@ -135,6 +136,7 @@ function face_find(simplex,row,face)
     end
     return 0
 end
+
 
 function find_2_external(simplex)
     # Finds all pairs of simplces that are neighbours and could be neighbours
@@ -248,8 +250,28 @@ end
 function perform_flip_2A_rev(simplex,to_create,central_vertex;r=1)
     # given a simplex with 2 external faces, we perform the flip of type 2A in reverse
     # and return the new topological vector
-    new_simplex = [simplex;to_create']
-    return topological_vec(new_simplex,central_vertex,r=r)
+
+    # Check if new flip is truly feasible
+    faces = [to_create[f] for f in [[1;2;3],[1;2;4],[1;3;4],[2;3;4]]]
+
+    do_flip = true
+    for face in faces
+        idx = face_find(simplex,0,face)
+        if idx > 0
+            idx2 = face_find(simplex,idx,face)
+            if idx2 > 0
+                do_flip = false
+            end
+        end
+    end
+
+    if do_flip
+        sort!(to_create)
+        new_simplex = [simplex;to_create']
+        return topological_vec(unique(new_simplex,dims=1),central_vertex,r=r)
+    else
+        return topological_vec(simplex,central_vertex,r=r)
+    end
 end
 
 function faces_share_edge(face_array,i,j)
@@ -303,7 +325,8 @@ end
 function perform_flip_2B(simplex,to_create,central_vertex;r=1)
     # given a simplex with 2 external faces, we perform the flip of type 2B
     # and return the new topological vector
-    new_simplex = [simplex; to_create']
+    sort!(to_create)
+    new_simplex = unique([simplex; to_create'],dims=1)
     return topological_vec(new_simplex,central_vertex,r=r)
 end
 #=
@@ -406,12 +429,26 @@ function find_all_neighbors(attempt,simplex,central_vertex;r=1)
         for kk in 1:length(to_flip)
             push!(tvec_nhbd,perform_flip_2A_rev(simplex,to_flip[kk],central_vertex;r=r))
         end
+
+        ###### Flip C !!!
+        for i = 1:size(simplex,1)
+            new_simplex = simplex[1:size(simplex,1) .!= i,:]
+            t = topological_vec(new_simplex,central_vertex,r=1)
+            if (length(t) >0) && (maximum(t) < typemax(Int64))
+                push!(tvec_nhbd,t)
+            end
+        end
+        ##############
     end
 
     to_flip = find_2B(simplex)
     for kk in 1:length(to_flip)
         push!(tvec_nhbd,perform_flip_2B(simplex,to_flip[kk],central_vertex;r=r))
     end
+
+
+
+
     unique!(tvec_nhbd)
     return tvec_nhbd
 end
@@ -425,7 +462,11 @@ function find_flip_graph3D(tvec_tot)
     splock = SpinLock()
     Threads.@threads for i = 1:length(tvec_tot)
     #for i = 1:length(tvec_tot)
+
         tvec = tvec_tot[i]
+        if length(tvec) == 1
+            continue
+        end
         simplex = zeros(Int64,length(tvec),4)
         t_vec_to_simplex!(tvec,simplex)
         central_vertex = 1 # By convention
@@ -451,14 +492,20 @@ function find_flip_graph3D(tvec_tot)
     # Now add the edges for the newly added vecs
     splock = SpinLock()
     Threads.@threads for i = 1:length(tvec_new)
+    #for i = 1:length(tvec_new)
+
+
         tvec = tvec_new[i]
+        if length(tvec) < 2
+            continue
+        end
+        #println("tvec = ", tvec)
         simplex = zeros(Int64,length(tvec),4)
         t_vec_to_simplex!(tvec,simplex)
         central_vertex = 1 # By convention
 
         tvec_nhbd = find_all_neighbors(2,simplex,central_vertex,r=1)
-
-       lock(splock)
+        lock(splock)
         for t in tvec_nhbd
             # This time ignore if their neighbours haven't been seen before
             if haskey(code_to_idx,t)
@@ -478,7 +525,7 @@ function find_flip_graph3D(tvec_tot)
 
     # To thin graph even further, remove vertices that are not central enough
     rank = pagerank(g)
-    to_keep = rank .> 1.4*mean(rank)
+    to_keep = rank .> 0.75*mean(rank)
     to_keep[1:length(tvec_tot)] .= true
     g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
 
@@ -487,18 +534,19 @@ function find_flip_graph3D(tvec_tot)
     # in the largest connected component of the new flip graph.
     #=
         # Load the number of unique motifs and how often they occur
-        str_arr = filter(x->occursin("avg.txt",x), readdir(Dir_out))
-        weight = amalg2([readin(Dir_out*s,0) for s in str_arr])
+        data_dir = homedir()*"/Documents/zebrafish/SegData/"
+        str_arr = filter(x->occursin("avg.txt",x), readdir(data_dir))
+        weight = amalg2_([readin_(data_dir*s,0) for s in str_arr])
         weight = [w[2] for w in weight]
         core_v = length(weight)
 
         # Verify that most of the motifs are in the connected component of the new flip graph
         g_comp = connected_components(g_new)
         v_in_core = intersect([i for i = 1:core_v],g_comp[1])
-        sum(weight[v_in_core])/sum(weight)
-    =#
+        println("pct in connected component = ", sum(weight[v_in_core])/sum(weight))
+     =#
     println("purged num vertices = ",nv(g_new))
-    println("purged num vertices = ",ne(g_new))
+    println("purged num edges = ",ne(g_new))
 
     return g_new
 end
@@ -530,3 +578,28 @@ simplex = zeros(Int64,length(tvec_tot[1]),4)
 t_vec_to_simplex!(tvec_tot[1],simplex)
 @profiler g = find_flip_graph3D(tvec_tot)
 =#
+
+
+function readin_(Data_dir_str,N)
+    if N > 0
+        W_arr = Array{Dict}(undef,0)
+        for i = 1:N
+            dat_in = CSV.read(Data_dir_str*string(i)*"_avg.txt")
+            push!(W_arr,Dict(dat_in.codes .=> dat_in.freq))
+        end
+        return W_arr
+    else
+        dat_in = CSV.read(Data_dir_str)
+        return Dict(dat_in.codes .=> dat_in.freq)
+    end
+end
+
+function amalg2_(w_tot)
+    count_tot = Dict{String,Int64}()
+    for i = 1:length(w_tot)
+        for k in collect(keys(w_tot[i]))
+            count_tot[k]= get(count_tot, k,0) + Int(w_tot[i][k])
+        end
+    end
+    return sort(collect(count_tot), by = tuple -> last(tuple), rev=true)
+end
