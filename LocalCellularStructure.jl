@@ -33,7 +33,6 @@ function label_3D(Positions,Data_dir_str; r=1, edge_keep = false,α = 0)
     if edge_keep
         not_edge = [i for i in 1:size(p,1)]
         simplices = simplices[α_val .== 1,:]
-        println(Data_dir_str)
     else
         not_edge = setdiff(1:size(p,1), edge_index)
     end
@@ -41,14 +40,11 @@ function label_3D(Positions,Data_dir_str; r=1, edge_keep = false,α = 0)
     for i in 1:length(not_edge)
 
             k_nbhd = find_nbhd(simplices,not_edge[i])
-            println("k_nbhd = ", k_nbhd)
             if length(k_nbhd) > 0
                 push!(tvec_tot,topological_vec(k_nbhd,not_edge[i]))
             else
                 not_edge[i] = -1
             end
-
-            println(not_edge)
 
 
     end

@@ -247,7 +247,7 @@ function find_2A_rev(simplex, r = 1)
     return to_flip
 end
 
-function perform_flip_2A_rev(simplex,to_create,central_vertex;r=1)
+function perform_flip_2A_rev(memsave,simplex,to_create,central_vertex;r=1)
     # given a simplex with 2 external faces, we perform the flip of type 2A in reverse
     # and return the new topological vector
 
@@ -267,8 +267,12 @@ function perform_flip_2A_rev(simplex,to_create,central_vertex;r=1)
 
     if do_flip
         sort!(to_create)
-        new_simplex = [simplex;to_create']
-        return topological_vec(unique(new_simplex,dims=1),central_vertex,r=r)
+        if any(i->all(j->to_create[j] == simplex[i,j],1:size(simplex,2)),1:size(simplex,1))
+            return topological_vec(simplex,central_vertex,r=r)
+        else
+            new_simplex = [simplex;to_create']
+            return topological_vec_mem_save(memsave,new_simplex,central_vertex,r=r)
+        end
     else
         return topological_vec(simplex,central_vertex,r=r)
     end
@@ -425,15 +429,17 @@ function find_all_neighbors(attempt,simplex,central_vertex;r=1)
 
     if attempt == 1
         # Only do the reverse caclulation for the initial vertices to save time
+        memsave = zeros(Int64,size(simplex,1)+1,size(simplex,2))
         to_flip = find_2A_rev(simplex)
         for kk in 1:length(to_flip)
-            push!(tvec_nhbd,perform_flip_2A_rev(simplex,to_flip[kk],central_vertex;r=r))
+            push!(tvec_nhbd,perform_flip_2A_rev(memsave,simplex,to_flip[kk],central_vertex;r=r))
         end
 
         ###### Flip C !!!
+        memsave = zeros(Int64,size(simplex,1)-1,size(simplex,2))
         for i = 1:size(simplex,1)
             new_simplex = simplex[1:size(simplex,1) .!= i,:]
-            t = topological_vec(new_simplex,central_vertex,r=1)
+            t = topological_vec_mem_save(memsave,new_simplex,central_vertex,r=1)
             if (length(t) >0) && (maximum(t) < typemax(Int64))
                 push!(tvec_nhbd,t)
             end
@@ -447,73 +453,131 @@ function find_all_neighbors(attempt,simplex,central_vertex;r=1)
     end
 
 
-
-
-    unique!(tvec_nhbd)
+    #unique!(tvec_nhbd[idx])
     return tvec_nhbd
 end
 
+#=
+function flip_loop_1!(tvec_nhbd,tvec_tot,i)
+    # Find neighbors of tvec_tot[i] and store them in tvec_nhbd
+    if (length(tvec_tot[i]) == 1) || (maximum(tvec_tot[i]) == typemax(Int64))
+        return
+    end
+    simplex = zeros(Int64,length(tvec_tot[i]),4)
+
+    t_vec_to_simplex!(tvec_tot[i],simplex)
+    central_vertex = 1 # By convention
+    loop_num = 1
+    find_all_neighbors!(tvec_nhbd,i,loop_num,simplex,central_vertex,r=1)
+
+end
+=#
+
+function flip_1(tvec)
+    # Find neighbors of tvec_tot[i] and store them in tvec_nhbd
+    if (length(tvec) == 1) || (maximum(tvec) == typemax(Int64))
+        return []
+    end
+    simplex = zeros(Int64,length(tvec),4)
+
+    t_vec_to_simplex!(tvec,simplex)
+    central_vertex = 1 # By convention
+    loop_num = 1
+    return find_all_neighbors(loop_num,simplex,central_vertex,r=1)
+
+end
+
+function flip_2(tvec)
+    # Find neighbors of tvec_new[i] and store them in tvec_nhbd
+    if (length(tvec) < 2) || (maximum(tvec) == typemax(Int64))
+        return []
+    end
+
+    simplex = zeros(Int64,length(tvec),4)
+    t_vec_to_simplex!(tvec,simplex)
+    central_vertex = 1 # By convention
+    loop_number = 2
+
+    return find_all_neighbors(loop_number,simplex,central_vertex,r=1)
+end
+
+#=
+function flip_loop_2!(tvec_nhbd,tvec_new,i)
+    # Find neighbors of tvec_new[i] and store them in tvec_nhbd
+    if (length(tvec_new[i]) < 2) || (maximum(tvec_new[i]) == typemax(Int64))
+        return
+    end
+
+    simplex = zeros(Int64,length(tvec_new[i]),4)
+    t_vec_to_simplex!(tvec_new[i],simplex)
+    central_vertex = 1 # By convention
+    loop_number = 2
+
+    find_all_neighbors!(tvec_nhbd,i,loop_number,simplex,central_vertex,r=1)
+end
+=#
+
+function flip_loop_2_clean_up!(g,code_to_idx, tvec_nhbd,tvec_new,k_start,k_end)
+    # After loop 2 has run, add in the new graph edges
+    for i = k_start:k_end
+        for t in tvec_nhbd[i- k_start + 1]
+            # This time ignore if their neighbours haven't been seen before
+            if haskey(code_to_idx,t)
+                add_edge!(g,code_to_idx[t],code_to_idx[tvec_new[i]])
+            end
+        end
+    end
+end
+
+
+function flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start,k_end)
+    # After loop 2 has run, add in the new graph edges and new motifs
+    for i = k_start:k_end
+        for t in tvec_nhbd[i- k_start + 1]
+            if haskey(code_to_idx,t)
+                add_edge!(g,code_to_idx[t],code_to_idx[tvec_tot[i]])
+            else
+                code_to_idx[t] = nv(g) + 1
+                add_vertex!(g)
+                add_edge!(g,code_to_idx[t],code_to_idx[tvec_tot[i]])
+                push!(tvec_new,t)
+            end
+        end
+    end
+end
+
+
 function find_flip_graph3D(tvec_tot)
     g = SimpleGraph(length(tvec_tot))
+    #tvec_tot = tvec_tot[1:10_000]
+    #println("Debug mode")
     code_to_idx_orig = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
     code_to_idx = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
     println("num vertices = ",nv(g))
     tvec_new = []
-    splock = SpinLock()
-    Threads.@threads for i = 1:length(tvec_tot)
-    #for i = 1:length(tvec_tot)
+    #tvec_nhbd = [[] for i = 1:length(tvec_tot)]
 
-        tvec = tvec_tot[i]
-        if length(tvec) == 1
-            continue
-        end
-        simplex = zeros(Int64,length(tvec),4)
-        t_vec_to_simplex!(tvec,simplex)
-        central_vertex = 1 # By convention
+    #Threads.@threads for i = 1:length(tvec_tot)
+    block_len = 500 # to save memory
+    nloop = Int(round(length(tvec_tot)/block_len))
 
-        tvec_nhbd = find_all_neighbors(1,simplex,central_vertex,r=1)
-
-       lock(splock)
-        for t in tvec_nhbd
-            if haskey(code_to_idx,t)
-                add_edge!(g,code_to_idx[t],code_to_idx[tvec])
-            else
-                code_to_idx[t] = nv(g) + 1
-                add_vertex!(g)
-                add_edge!(g,code_to_idx[t],code_to_idx[tvec])
-                push!(tvec_new,t)
-            end
-        end
-        unlock(splock)
-
+    for i = 1:nloop
+        k_start = (i-1)*block_len + 1
+        k_end = minimum([i*block_len ;length(tvec_tot)])
+        tvec_nhbd = pmap(flip_1,tvec_tot[k_start:k_end])
+        flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start,k_end)
+        println("Done ", i*block_len, "out of ", length(tvec_tot))
     end
     println("num edges = ",ne(g))
 
     # Now add the edges for the newly added vecs
-    splock = SpinLock()
-    Threads.@threads for i = 1:length(tvec_new)
-    #for i = 1:length(tvec_new)
-
-
-        tvec = tvec_new[i]
-        if length(tvec) < 2
-            continue
-        end
-        #println("tvec = ", tvec)
-        simplex = zeros(Int64,length(tvec),4)
-        t_vec_to_simplex!(tvec,simplex)
-        central_vertex = 1 # By convention
-
-        tvec_nhbd = find_all_neighbors(2,simplex,central_vertex,r=1)
-        lock(splock)
-        for t in tvec_nhbd
-            # This time ignore if their neighbours haven't been seen before
-            if haskey(code_to_idx,t)
-                add_edge!(g,code_to_idx[t],code_to_idx[tvec])
-            end
-        end
-        unlock(splock)
-
+    nloop = Int(round(length(tvec_new)/block_len))
+    for i = 1:nloop
+        k_start = (i-1)*block_len + 1
+        k_end = minimum([i*block_len ;length(tvec_new)])
+        tvec_nhbd = pmap(flip_2,tvec_new[k_start:k_end])
+        flip_loop_2_clean_up!(g,code_to_idx,tvec_nhbd,tvec_new,k_start,k_end)
+        println("Done ", i*block_len, "out of ", length(tvec_new))
     end
 
     # remove vertices that won't effect the diffusion calculation
@@ -525,7 +589,7 @@ function find_flip_graph3D(tvec_tot)
 
     # To thin graph even further, remove vertices that are not central enough
     rank = pagerank(g)
-    to_keep = rank .> 0.75*mean(rank)
+    to_keep = rank .> 1.8*mean(rank)
     to_keep[1:length(tvec_tot)] .= true
     g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
 
@@ -534,17 +598,19 @@ function find_flip_graph3D(tvec_tot)
     # in the largest connected component of the new flip graph.
     #=
         # Load the number of unique motifs and how often they occur
-        data_dir = homedir()*"/Documents/zebrafish/SegData/"
-        str_arr = filter(x->occursin("avg.txt",x), readdir(data_dir))
-        weight = amalg2_([readin_(data_dir*s,0) for s in str_arr])
-        weight = [w[2] for w in weight]
-        core_v = length(weight)
 
-        # Verify that most of the motifs are in the connected component of the new flip graph
-        g_comp = connected_components(g_new)
-        v_in_core = intersect([i for i = 1:core_v],g_comp[1])
-        println("pct in connected component = ", sum(weight[v_in_core])/sum(weight))
-     =#
+    data_dir = homedir()*"/Documents/CellShapeProject/LabeledData/"
+    str_arr = filter(x->occursin("avg.txt",x), readdir(data_dir))
+    weight = amalg2_([readin_(data_dir*s,0) for s in str_arr])
+    weight = [w[2] for w in weight]
+    core_v = length(weight)
+
+    # Verify that most of the motifs are in the connected component of the new flip graph
+    g_comp = connected_components(g_new)
+    v_in_core = intersect([i for i = 1:core_v],g_comp[1])
+    println("pct in connected component = ", sum(weight[v_in_core])/sum(weight))
+
+      =#
     println("purged num vertices = ",nv(g_new))
     println("purged num edges = ",ne(g_new))
 

@@ -64,7 +64,8 @@ function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
                             j+1,num_zero,sim_code)
         end
         num_zero[i] = -1
-        fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc)
+        num_labeled = 4#length(unique(nbhd[num_zero .== -1,:]))
+        fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc,num_labeled)
 
         # The above gets us to the starting point of i_save,p_save, where no more
         # simplices can be labeled. We now try all possible guesses
@@ -107,7 +108,8 @@ function deg_case(nbhd,idx_loc,i_save,p_save,to_perm,central_vertex)
 
                 Topological_vec_cp[findlast(x-> x< typemax(Int64),Topological_vec_cp) .+ 1 ] = sim_code_cp[s]
 
-                fill_labels(which_to_label_cp,nbhd,num_zero_cp,sim_code_cp,N,Topological_vec_cp,idx_loc)
+                num_labeled = -1
+                fill_labels(which_to_label_cp,nbhd,num_zero_cp,sim_code_cp,N,Topological_vec_cp,idx_loc,num_labeled)
 
                 push!(tvec_tot,copy(Topological_vec_cp))
             end
@@ -119,7 +121,8 @@ end
 
 
 function fill_labels(to_label::Array{Int64,1}, Orig::Array{Int64,2},
-            num_zero::Array{Int64,1},s_code::Array{Int64,1},N::Int64,Topological_vec,idx_loc)
+            num_zero::Array{Int64,1},s_code::Array{Int64,1},N::Int64,
+            Topological_vec,idx_loc,num_labeled)
     # This is the core function of the labeling algorithm. It assumes that the
     # first simplex has been chosen and labeled. The rest of the labeling now
     # procedes deterministically, but will terminate if the labeling is not less
@@ -127,7 +130,11 @@ function fill_labels(to_label::Array{Int64,1}, Orig::Array{Int64,2},
     N_sim_labeled = sum(num_zero .== -1)
 
     flag = 0
-    n_l  = length(unique(Orig[num_zero .== -1,:])) + 1
+    if num_labeled > 0
+        n_l  = num_labeled + 1#length(unique(Orig[num_zero .== -1,:])) + 1
+    else
+        n_l = length(unique(Orig[num_zero .== -1,:])) + 1
+    end
     for n = n_l:N
     #@inbounds for n = 5:N
         # Take the minimum val of s_code for all potential choices
@@ -217,14 +224,18 @@ function find_to_perm!(to_perm,nbhd,central_vertex,M)
         end
     end
 end
-
 function topological_vec(k_nbhd,central_vertex;r=1)
+    nbhd = similar(k_nbhd)
+    return topological_vec_mem_save(nbhd,k_nbhd,central_vertex;r=1)
+end
+
+function topological_vec_mem_save(nbhd,k_nbhd,central_vertex;r=1)
     # This function takes a neighborhood of simplices around a central vertex
     # and gives it a cannonical labeling.
 
     # First make a copy of k_nbhd and relabel the vertices 1:N
-    nbhd = copy(k_nbhd)
-    nbhd_unique = unique(nbhd)
+    #nbhd = copy(k_nbhd)
+    nbhd_unique = unique(k_nbhd)
     N = length(nbhd_unique)
     if N > 62
         error("Too many to store in int64")
@@ -237,6 +248,7 @@ function topological_vec(k_nbhd,central_vertex;r=1)
             end
         end
     end
+
     central_vertex = findfirst(isequal(central_vertex),nbhd_unique)
 
 
@@ -280,7 +292,8 @@ function topological_vec(k_nbhd,central_vertex;r=1)
                 end
                 num_zero[i] = -1
                 tvec_cp =  copy(Topological_vec)
-                optimal = fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc)
+                num_labeled = 4
+                optimal = fill_labels(which_to_label,nbhd,num_zero,sim_code,N,Topological_vec,idx_loc,num_labeled)
 
                 # For the degenerate case, we save all the initial configurations
                 # that give rise to the best possible start
