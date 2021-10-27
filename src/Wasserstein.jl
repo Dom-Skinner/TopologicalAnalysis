@@ -4,7 +4,7 @@ import LightGraphs
 const lg = LightGraphs
 import StatsBase
 using SparseArrays
-using Convex, Mosek, MosekTools
+#using Convex, Mosek, MosekTools
 using Base.Threads
 import Clp  # use your favorite LP solver here
 #using MathProgBase,Gurobi

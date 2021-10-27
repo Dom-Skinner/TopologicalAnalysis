@@ -13,6 +13,7 @@ using .WassersteinTools
 include("Tools3D.jl")
 using .Tools3D
 
+
 function weinberg2D_wrap(Positions, Data_dir_str; periodic=false, r=2, α = 0)
     if periodic
         Weinberg,S = weinberg2D(deepcopy(Positions),periodic,r)

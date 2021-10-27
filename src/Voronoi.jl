@@ -5,7 +5,12 @@
 using PyCall
 using LinearAlgebra: norm, det
 using Statistics: median
-scipy = pyimport("scipy.spatial.qhull")
+#scipy = pyimport("scipy.spatial.qhull")
+const scipy_qhull = PyNULL()
+
+function __init__()
+    copy!(scipy_qhull, pyimport_conda("scipy.spatial.qhull", "scipy"))
+end
 
 
 function p_val(Positions)
@@ -121,7 +126,7 @@ end
 #=
 function Voronoi_find(Positions)
    p = p_val(Positions)
-   vor = scipy.Voronoi(p)
+   vor = scipy_qhull.Voronoi(p)
    index_points = vor.point_region.+1
    regions = vor.regions
    edge_index = edge_find_voronoi(p,index_points,regions)
@@ -132,7 +137,7 @@ end
 
 function Voronoi_find_shape(Positions)
    p = p_val(Positions)
-   vor = scipy.Voronoi(p)
+   vor = scipy_qhull.Voronoi(p)
    index_points = vor.point_region.+1
    regions = vor.regions
    vert = vor.vertices
@@ -144,7 +149,7 @@ end
 
 function Delaunay_find(Positions; α = 0)
     p = p_val(Positions)
-    tri = scipy.Delaunay(p)
+    tri = scipy_qhull.Delaunay(p)
 
     simplices = tri.simplices.+1 # convert to julia indexing
     neighbours = tri.neighbors.+1
