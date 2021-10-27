@@ -2,6 +2,7 @@ using LightGraphs
 using DataFrames, CSV
 using Base.Threads
 using StatsBase:mean
+using Distributed
 function three_match(A,k,l)
     # finds if rows k and l of A share a face
     count = 0
@@ -412,7 +413,7 @@ function perform_2_plus_external_flip(simplex,ij,central_vertex;r=1)
     return topological_vec(new_simplex,central_vertex,r=r)
 end
 =#
-function find_all_neighbors(attempt,simplex,central_vertex;r=1)
+function find_all_neighbors(attempt,simplex,central_vertex,edge_keep;r=1)
     # Given a local simplicial complex, this function finds all others that
     # are 1 flip away, trying type 1A,1B,2A,2B, flips along the way.
     tvec_nhbd = []
@@ -428,20 +429,22 @@ function find_all_neighbors(attempt,simplex,central_vertex;r=1)
     end
 
     if attempt == 1
-        # Only do the reverse caclulation for the initial vertices to save time
+        # Only do the reverse calculation for the initial vertices to save time
         memsave = zeros(Int64,size(simplex,1)+1,size(simplex,2))
         to_flip = find_2A_rev(simplex)
         for kk in 1:length(to_flip)
             push!(tvec_nhbd,perform_flip_2A_rev(memsave,simplex,to_flip[kk],central_vertex;r=r))
         end
 
-        ###### Flip C !!!
-        memsave = zeros(Int64,size(simplex,1)-1,size(simplex,2))
-        for i = 1:size(simplex,1)
-            new_simplex = simplex[1:size(simplex,1) .!= i,:]
-            t = topological_vec_mem_save(memsave,new_simplex,central_vertex,r=1)
-            if (length(t) >0) && (maximum(t) < typemax(Int64))
-                push!(tvec_nhbd,t)
+        ###### Flip C, but only if we are keeping the edges
+        if edge_keep
+            memsave = zeros(Int64,size(simplex,1)-1,size(simplex,2))
+            for i = 1:size(simplex,1)
+                new_simplex = simplex[1:size(simplex,1) .!= i,:]
+                t = topological_vec_mem_save(memsave,new_simplex,central_vertex,r=1)
+                if (length(t) >0) && (maximum(t) < typemax(Int64))
+                    push!(tvec_nhbd,t)
+                end
             end
         end
         ##############
@@ -473,7 +476,7 @@ function flip_loop_1!(tvec_nhbd,tvec_tot,i)
 end
 =#
 
-function flip_1(tvec)
+function flip_1(tvec,edge_keep)
     # Find neighbors of tvec_tot[i] and store them in tvec_nhbd
     if (length(tvec) == 1) || (maximum(tvec) == typemax(Int64))
         return []
@@ -483,11 +486,11 @@ function flip_1(tvec)
     t_vec_to_simplex!(tvec,simplex)
     central_vertex = 1 # By convention
     loop_num = 1
-    return find_all_neighbors(loop_num,simplex,central_vertex,r=1)
+    return find_all_neighbors(loop_num,simplex,central_vertex,edge_keep,r=1)
 
 end
 
-function flip_2(tvec)
+function flip_2(tvec,edge_keep)
     # Find neighbors of tvec_new[i] and store them in tvec_nhbd
     if (length(tvec) < 2) || (maximum(tvec) == typemax(Int64))
         return []
@@ -498,7 +501,7 @@ function flip_2(tvec)
     central_vertex = 1 # By convention
     loop_number = 2
 
-    return find_all_neighbors(loop_number,simplex,central_vertex,r=1)
+    return find_all_neighbors(loop_number,simplex,central_vertex,edge_keep,r=1)
 end
 
 #=
@@ -547,35 +550,36 @@ function flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start
 end
 
 
-function find_flip_graph3D(tvec_tot)
+function find_flip_graph3D(tvec_tot,edge_keep,thresh)
     g = SimpleGraph(length(tvec_tot))
     #tvec_tot = tvec_tot[1:10_000]
     #println("Debug mode")
-    code_to_idx_orig = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
+    #code_to_idx_orig = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
     code_to_idx = Dict(tvec_tot[i] => i for i in 1:length(tvec_tot))
     println("num vertices = ",nv(g))
     tvec_new = []
     #tvec_nhbd = [[] for i = 1:length(tvec_tot)]
 
     #Threads.@threads for i = 1:length(tvec_tot)
-    block_len = 500 # to save memory
+    block_len = 1000 # to save memory
     nloop = Int(round(length(tvec_tot)/block_len))
 
     for i = 1:nloop
         k_start = (i-1)*block_len + 1
         k_end = minimum([i*block_len ;length(tvec_tot)])
-        tvec_nhbd = pmap(flip_1,tvec_tot[k_start:k_end])
+        tvec_nhbd = pmap(x->flip_1(x,edge_keep),tvec_tot[k_start:k_end])
         flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start,k_end)
         println("Done ", i*block_len, "out of ", length(tvec_tot))
     end
     println("num edges = ",ne(g))
 
     # Now add the edges for the newly added vecs
+
     nloop = Int(round(length(tvec_new)/block_len))
     for i = 1:nloop
         k_start = (i-1)*block_len + 1
         k_end = minimum([i*block_len ;length(tvec_new)])
-        tvec_nhbd = pmap(flip_2,tvec_new[k_start:k_end])
+        tvec_nhbd = pmap(x->flip_2(x,edge_keep),tvec_new[k_start:k_end])
         flip_loop_2_clean_up!(g,code_to_idx,tvec_nhbd,tvec_new,k_start,k_end)
         println("Done ", i*block_len, "out of ", length(tvec_new))
     end
@@ -589,10 +593,9 @@ function find_flip_graph3D(tvec_tot)
 
     # To thin graph even further, remove vertices that are not central enough
     rank = pagerank(g)
-    to_keep = rank .> 1.8*mean(rank)
+    to_keep = rank .> thresh*mean(rank)
     to_keep[1:length(tvec_tot)] .= true
     g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
-
 
     # Use this testing code to see what fraction of the motifs are accounted for
     # in the largest connected component of the new flip graph.
@@ -617,18 +620,29 @@ function find_flip_graph3D(tvec_tot)
     return g_new
 end
 
-function compute_flip_graph3D(code_amalg,save_str)
+function compute_flip_graph3D(code_amalg,save_str,edge_keep,thresh)
     tvec_tot = []
     for i = 1:size(code_amalg,1)
         w = code_amalg[i][1]
         w_num = Meta.parse(w)
         push!(tvec_tot,Int.(w_num.args))
     end
-    g = find_flip_graph3D(tvec_tot)
+    g = find_flip_graph3D(tvec_tot,edge_keep,thresh)
     savegraph( save_str*".lgz", g)
     df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
         index = [k for k in 1:size(code_amalg,1)])
     CSV.write(save_str*".txt",  df)
+end
+
+function threshold_graph(str,thr)
+    g = loadgraph(str*".lgz")
+    dat_in = CSV.read(str*".txt")
+    nv_keep = length(dat_in.codes)
+    rank = pagerank(g)
+    to_keep = rank .> thr*mean(rank)
+    to_keep[1:nv_keep] .= true
+    g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
+    savegraph(str*"_th.lgz",g_new)
 end
 #=
 tvec_tot = []

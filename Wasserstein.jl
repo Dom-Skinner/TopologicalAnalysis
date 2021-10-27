@@ -178,13 +178,15 @@ function find_reg_geo(p0,p1,g,k)
         return q_full, k*problem.optval
 end
 
-function geodesic_reg(network_save_file,w1,w2,k)
+function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
         g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
         w_vec_in = [w1;w2]
         weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
-        q,val = find_reg_geo(weight[1],weight[2],g,k)
+        q,val = find_reg_geo(α*weight[1]+(1.0-α)*weight[2],β*weight[1]
+                                +(1.0-β)*weight[2],g,k)
         return q,val
 end
+
 
 function calculate_distance_matrix(network_save_file,w_vec_in)
     # This function is a wrapper for all other functions in this file

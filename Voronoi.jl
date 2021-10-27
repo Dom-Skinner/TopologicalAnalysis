@@ -83,7 +83,7 @@ function alpha_shape_eval!(α_val,neighbours,simplices,p; α = 0)
     end
     #α = minimum([α;63.0]) # For the biofilms
     println("using alpha = ",α) # if there are density variations
-
+    #println("2 median = ",2*median(α_val)) # if there are density variations
     for s in 1:length(neighbours)
         if neighbours[s] > 0
             if  α_val[neighbours[s]] > α

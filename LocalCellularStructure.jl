@@ -30,9 +30,10 @@ function label_3D(Positions,Data_dir_str; r=1, edge_keep = false,α = 0)
         error("Todo")
         # need to have better function for finding edge points if r > 1
     end
+
     if edge_keep
-        not_edge = [i for i in 1:size(p,1)]
-        simplices = simplices[α_val .== 1,:]
+        not_edge = [i for i in 1:size(p,1)] # keep all indices
+        simplices = simplices[α_val .== 1,:] # but only keep simplices that have alpha val < α
     else
         not_edge = setdiff(1:size(p,1), edge_index)
     end
@@ -53,14 +54,14 @@ function label_3D(Positions,Data_dir_str; r=1, edge_keep = false,α = 0)
     write_avg(countmap(tvec_tot),Data_dir_str)
 end
 
-function compute_flip(Data_dir; restrict = 0, dimension = 2)
+function compute_flip(Data_dir; restrict = 0, edge_keep = false, dimension = 2,thresh=1.5)
     str_arr = filter(x->occursin("avg.txt",x), readdir(Data_dir))
     weight = amalg2([readin(Data_dir*s,0) for s in str_arr])
     keep = [w[2]>restrict for w in weight]
     if dimension == 2
         compute_flip_graph(weight[keep],Data_dir*"w_network")
     else
-        compute_flip_graph3D(weight[keep],Data_dir*"w_network")
+        compute_flip_graph3D(weight[keep],Data_dir*"w_network",edge_keep,thresh)
     end
 end
 
@@ -82,7 +83,7 @@ export
         fill_SN_distance_mat, # depricated
 
         # Distribution tools
-        tvec_dist,moments_find,
+        tvec_dist,moments_find,find_dist_props,
         # Misc.
         subsample_dist, motif_size_find
 end

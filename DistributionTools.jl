@@ -31,3 +31,19 @@ function moments_find(x,p,n=2)
         error("Todo")
     end
 end
+
+function find_dist_props(weights_arr)
+    l_mean = zeros(length(weights_arr))
+    l_var = zeros(length(weights_arr))
+    l_skew = zeros(length(weights_arr))
+
+    for i = 1:length(weights_arr)
+        l,p = tvec_dist(weights_arr[i])
+        μ,σ,γ = moments_find(l,p,3)
+        l_mean[i] = μ
+        l_var[i]  = σ
+        l_skew[i] = γ
+        println(100.0 *i / length(weights_arr))
+    end
+    return l_mean,l_var,l_skew
+end

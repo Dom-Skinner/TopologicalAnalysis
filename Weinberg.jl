@@ -193,13 +193,26 @@ function weinberg2D_core(g,order_mat,N,r=2)
     return code_tot,S_tot
 end
 
-function weinberg2D(Positions,periodic=false,r=2)
+function motif_size_find(Pos,r=2;periodic=true)
+    Positions = deepcopy(Pos)
     N = length(Positions)
     index_ref = [x for x in 1:N]
     if periodic; periodic_extend!(Positions,index_ref); end
     # All other operations are performed both periodic and non-periodic systems,
     # but for non-periodic systems should have no effect
     p, simplices, neighbrs, edge_index = Delaunay_find(Positions)
+    g_full = graph_construct(simplices,length(Positions))
+    motif_lens = [length(neighborhood(g_full,k,r)) for k in 1:N]
+    return motif_lens
+end
+
+function weinberg2D(Positions,periodic=false,r=2; α = 0)
+    N = length(Positions)
+    index_ref = [x for x in 1:N]
+    if periodic; periodic_extend!(Positions,index_ref); end
+    # All other operations are performed both periodic and non-periodic systems,
+    # but for non-periodic systems should have no effect
+    p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α = α)
     g_full = graph_construct(simplices,length(Positions))
 
 
