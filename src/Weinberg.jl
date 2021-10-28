@@ -179,16 +179,31 @@ function weinberg2D_core(g,order_mat,N,r=2)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
 
-    for k in 1:nv(g)
+    for k in 1:N
         nbh  = neighborhood(g,k,r)
         g_ego, vmap = induced_subgraph(g,nbh)
         vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
         order_local = order_mat[vmap]
+
         for i = 1:length(vmap)
             total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
             order_local[i] = total_order[total_order .> 0]
         end
-        weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
+        try
+            weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
+        catch
+            println(k)
+            #println(order_mat[vmap])
+            #println([e for e in edges(g_ego)])
+            i = 1
+            println(vmap[i])
+            println(order_mat[vmap[i]])
+            println(vmap_inv)
+            #total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
+            #println(total_order)
+
+            error()
+        end
     end
     return code_tot,S_tot
 end
@@ -206,7 +221,7 @@ function motif_size_find(Pos,r=2;periodic=true)
     return motif_lens
 end
 
-function weinberg2D(Positions,periodic=false,r=2; α = 0)
+function weinberg2D_old(Positions,periodic=false,r=2; α = 0)
     N = length(Positions)
     index_ref = [x for x in 1:N]
     if periodic; periodic_extend!(Positions,index_ref); end
@@ -232,12 +247,44 @@ function weinberg2D(Positions,periodic=false,r=2; α = 0)
     simplices_period = map.(x -> index_ref[x],simplices[rows_keep,:])
     g_period = graph_construct(simplices_period,N)
 
+    println(N)
+    println(nv(g_period))
+
     if periodic
-        return weinberg2D_core(g_period,order_mat,N,r)
+        return weinberg2D_core(g_period,order_mat,r)
     else
         e_2 = edge_neighbors(g_period,edge_index)
         idx = setdiff(1:nv(g_period), e_2)
-        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N,r)
+
+        code_tot,S_tot = weinberg2D_core(g_period,order_mat,r)
         return code_tot[idx], S_tot[idx], idx
     end
+end
+
+
+
+function weinberg2D(path_to_dir_in,params_in,r)
+
+    g = loadgraph(path_to_dir_in*"_graph.lgz")
+    order_mat = map.(s -> parse(Int64, s), split.(eachline(path_to_dir_in*"_order_mat.txt"),'\t'))
+    edge_index = readdlm(path_to_dir_in*"_edge_nodes.txt", '\t', Int, '\n')
+    periodic = (params_in["Periodic"] == "True")
+
+    if periodic
+        N = Int(params_in["Original vertex number"])
+    else
+        N = nv(g)
+    end
+
+    code_tot,S_tot = weinberg2D_core(g,order_mat,N,r)
+    idx = 1:N
+
+    if !periodic
+        for i = 1:r-1
+            edge_index = edge_neighbors(g,edge_index)
+        end
+        idx = setdiff(1:nv(g), edge_index)
+    end
+
+    return idx, code_tot[idx], S_tot[idx]
 end

@@ -13,12 +13,40 @@ using .WassersteinTools
 include("Tools3D.jl")
 using .Tools3D
 
+function find_delaunay_network(path_to_csv_in,path_out; periodic=false, α = 0,tol=0.6)
+
+    dat_in = Matrix(CSV.read(path_to_csv_in))
+    Positions = unique([dat_in[k,:] for k in 1:size(dat_in,1)])
+    dim = length(Positions[1])
+
+    if dim == 2
+        find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
+    elseif dim == 3
+        find_delaunay_network_3D(Positions,path_out, periodic=periodic, α=α,tol=tol)
+    else
+        error("Higher than 3D Delanay not currently supported")
+    end
+end
+
+
+function compute_motifs(path_to_dir_in,path_out,r)
+
+    params_in = CSV.read(path_to_dir_in*".info", delim=", ")
+    params_in = Dict(params_in.Parameter .=> params_in.value)
+    if params_in["Graph type"] == "Delaunay"
+
+        idx, Weinberg, S_tot = weinberg2D(path_to_dir_in,params_in,r)
+        #write_total(idx, Weinberg,S,path_out)
+        write_avg(countmap(Weinberg),path_out)
+    end
+end
+
 
 function weinberg2D_wrap(Positions, Data_dir_str; periodic=false, r=2, α = 0)
     if periodic
-        Weinberg,S = weinberg2D(deepcopy(Positions),periodic,r)
+        Weinberg,S = weinberg2D_old(deepcopy(Positions),periodic,r)
     else
-        Weinberg,S,idx = weinberg2D(deepcopy(Positions),periodic,r,α=α)
+        Weinberg,S,idx = weinberg2D_old(deepcopy(Positions),periodic,r,α=α)
         Positions = Positions[idx]
     end
     write_total(Positions, Weinberg,S,Data_dir_str)
@@ -71,17 +99,17 @@ export
         readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,
 
         # For computing topological types
-        weinberg2D_wrap, weinberg_find!, label_3D,
+        weinberg2D_wrap, weinberg_find!, label_3D,find_delaunay_network,
 
         # For computing flip graph
-        compute_flip_graph, compute_flip,
+        compute_flip_graph, compute_flip, compute_motifs
 
         # For calculating distances
         calculate_distance_matrix,calculate_distance_matrix_parallel,
         W_dist, fill_W_distance_mat,fill_JS_distance_mat,
         calculate_distance_matrix_lap,distance_mat_lap,geodesic_reg,
 
-        fill_SN_distance_mat, # depricated
+    #    fill_SN_distance_mat, # depricated
 
         # Distribution tools
         tvec_dist,moments_find,find_dist_props,

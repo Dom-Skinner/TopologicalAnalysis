@@ -7,6 +7,7 @@ using LinearAlgebra: norm, det
 using Statistics: median
 #scipy = pyimport("scipy.spatial.qhull")
 const scipy_qhull = PyNULL()
+using DelimitedFiles
 
 function __init__()
     copy!(scipy_qhull, pyimport_conda("scipy.spatial.qhull", "scipy"))
@@ -87,6 +88,7 @@ function alpha_shape_eval!(α_val,neighbours,simplices,p; α = 0)
         α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
     end
     #α = minimum([α;63.0]) # For the biofilms
+    println("Testing Revise.jl")
     println("using alpha = ",α) # if there are density variations
     #println("2 median = ",2*median(α_val)) # if there are density variations
     for s in 1:length(neighbours)
@@ -165,7 +167,7 @@ end
 
 
 
-function periodic_extend!(Coords,ref,tol=0.6)
+function periodic_extend!(Coords,ref;tol=0.6)
     # Applies the periodic boundary conditions so that no boundary effects apply
     # to any of the original N points.
     if length(Coords[1]) == 2
@@ -197,4 +199,69 @@ function periodic_extend!(Coords,ref,tol=0.6)
             end
         end
     end
+end
+
+function compute_order_mat(p,g_full,index_ref)
+    # Needed for Weinberg algorithm
+    N = size(p,1)
+    order_mat = Vector{Array{Int64}}(undef,nv(g_full))
+    for kk = 1:nv(g_full)
+        N_list = neighbors(g_full,kk)
+        theta = [atan(p[s,2]-p[kk,2], p[s,1]-p[kk,1]) for s in N_list]
+        order_mat[kk] = N_list[sortperm(theta)]
+    end
+
+    order_mat = order_mat[1:N]
+    for i = 1:N
+        order_mat[i] = map(x -> index_ref[x],order_mat[i])
+    end
+    return order_mat
+end
+
+function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
+
+    # If the system is periodic, add copies of points so that the Delaunay can
+    # include the full statistics. N.B. This is done in an incredibly inefficient
+    # way right now, since there were bugs in the old version of constructing the
+    # periodic graph.
+
+    N = length(Positions)
+    index_ref = [x for x in 1:N]
+    if periodic; periodic_extend!(Positions,index_ref,tol=tol); end
+
+    # Find the Delaunay and construct the full graph
+    p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α = α)
+    g_full = graph_construct(simplices,length(Positions))
+    order_mat = compute_order_mat(p,g_full,index_ref)
+
+
+    savegraph(path_out*"_graph.lgz",g_full)
+
+    open(path_out*"_edge_nodes.txt", "w") do io
+           writedlm(io, edge_index)
+    end
+
+    open(path_out*"_order_mat.txt", "w") do io
+           writedlm(io, order_mat)
+    end
+
+    open(path_out*".info", "w") do io
+        write(io,"Parameter, value\n")
+        write(io,"Graph type, Delaunay\n")
+        write(io,"Dimension, 2\n")
+        write(io,"Periodic, ", string(periodic), "\n")
+        write(io,"Alpha, ", string(α), "\n")
+        write(io,"Tolerance, ", string(tol), "\n")
+        write(io,"Original vertex number, ", string(N), "\n")
+    end
+#=
+    if periodic
+        return weinberg2D_core(g_period,order_mat,N,r)
+    else
+        e_2 = edge_neighbors(g_period,edge_index)
+        idx = setdiff(1:nv(g_period), e_2)
+        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N,r)
+        return code_tot[idx], S_tot[idx], idx
+    end
+    =#
 end
