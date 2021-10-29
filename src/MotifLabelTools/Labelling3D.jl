@@ -347,3 +347,30 @@ function t_vec_to_simplex!(tvec,simplex)
         end
     end
 end
+
+
+
+function simplicial_3D(path_to_dir_in,params_in)
+
+    simplices = readdlm(path_to_dir_in*"_simplices.txt", '\t', Int, '\n')
+    not_edge = readdlm(path_to_dir_in*"_indices_keep.txt", '\t', Int, '\n')
+    periodic = (params_in["Periodic"] == "True")
+
+    if periodic
+        N = Int(params_in["Original vertex number"])
+        not_edge = not_edge[not_edge .<= N] # don't compute motif for periodic copies
+    end
+
+    tvec_tot = Array{Int64}[]
+    for i in 1:length(not_edge)
+        k_nbhd = find_nbhd(simplices,not_edge[i])
+        if length(k_nbhd) > 0
+            push!(tvec_tot,topological_vec(k_nbhd,not_edge[i]))
+        else
+            not_edge[i] = -1
+        end
+    end
+
+    not_edge = not_edge[not_edge.>0]
+    return not_edge, tvec_tot
+end

@@ -76,14 +76,14 @@ function alpha_shape3D!( α_val,simplices,p)
     end
 end
 
-function alpha_shape_eval!(neighbours,simplices,p; α = 0)
+function alpha_shape_eval!(α_val,neighbours,simplices,p, α )
 
     # This function performs an alpha shape analysis. It computes the radius of
     # circumcircle/sphere for each simplex. If the radius is too large, all points
     # are marked as boundary points.
 
     # first compute the radius or α_val for each simplex
-    α_val = zeros(length(simplices[:,1]))
+
     if size(p,2) == 3
         alpha_shape3D!(α_val,simplices,p)
     elseif size(p,2) == 2
@@ -106,6 +106,8 @@ function alpha_shape_eval!(neighbours,simplices,p; α = 0)
             end
         end
     end
+
+    α_val .= α_val .< α
 
 end
 
@@ -131,7 +133,7 @@ function edge_indices_delaunay(simplices,neighbours)
 end
 
 
-function Delaunay_find(Positions; α = 0)
+function Delaunay_find(Positions,α)
     p = p_val(Positions)
     tri = scipy_qhull.Delaunay(p)
 
@@ -143,11 +145,12 @@ function Delaunay_find(Positions; α = 0)
     # neighbours tells you which of the triangles/tetrahedrons border each other
     # If they border the edge, they border -1
 
-    alpha_shape_eval!(neighbours,simplices,p,α=α)
+    α_val = zeros(length(simplices[:,1]))
+    alpha_shape_eval!(α_val,neighbours,simplices,p,α)
 
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
-    return p, simplices, neighbours, edge_index
+    return p, simplices, neighbours, edge_index, α_val
 end
 
 
@@ -208,7 +211,7 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
     if periodic; periodic_extend!(Positions,tol=tol); end
 
     # Find the Delaunay and construct the full graph
-    p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α = α)
+    p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α)
     g_full = graph_construct(simplices,length(Positions))
     order_mat = compute_order_mat(p,g_full)
 
@@ -227,6 +230,45 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
         write(io,"Graph type, Delaunay\n")
         write(io,"Dimension, 2\n")
         write(io,"Periodic, ", string(periodic), "\n")
+        write(io,"Alpha, ", string(α), "\n")
+        write(io,"Tolerance, ", string(tol), "\n")
+        write(io,"Original vertex number, ", string(N), "\n")
+    end
+
+end
+
+
+
+function find_delaunay_network_3D(Positions, path_out, periodic, α, tol, edge_keep)
+
+    N = length(Positions)
+    if periodic; periodic_extend!(Positions,tol=tol); end
+
+    p, simplices, neighbrs, edge_index, α_val = Delaunay_find(Positions, α)
+
+    if edge_keep
+        not_edge = [i for i in 1:size(p,1)] # keep all indices
+        simplices = simplices[α_val .== 1,:] # but only keep simplices that have alpha val < α
+    else
+        not_edge = setdiff(1:size(p,1), edge_index)
+    end
+
+
+    # Write the data to file
+    open(path_out*"_simplices.txt", "w") do io
+           writedlm(io, simplices)
+    end
+
+    open(path_out*"_indices_keep.txt", "w") do io
+           writedlm(io, not_edge)
+    end
+
+    open(path_out*".info", "w") do io
+        write(io,"Parameter, value\n")
+        write(io,"Graph type, Delaunay\n")
+        write(io,"Dimension, 3\n")
+        write(io,"Periodic, ", string(periodic), "\n")
+        write(io,"Edge keep, ", string(edge_keep), "\n")
         write(io,"Alpha, ", string(α), "\n")
         write(io,"Tolerance, ", string(tol), "\n")
         write(io,"Original vertex number, ", string(N), "\n")

@@ -1,0 +1,4 @@
+*.txt
+*.info
+*.lgz
+!*old_avg*

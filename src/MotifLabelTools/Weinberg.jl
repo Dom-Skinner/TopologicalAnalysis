@@ -1,7 +1,5 @@
 using Statistics: mean
-#using PyCall
 using LinearAlgebra: norm
-#scipy = pyimport("scipy.spatial.qhull")
 
 
 
@@ -105,21 +103,6 @@ function augmented_graph(g)
     return g_aug
 end
 
-#=
-function weinberg_find(g,order_mat)
-    g_aug = augmented_graph(g)
-
-    vecs = Array{Int64}[]
-    for e in edges(g_aug)
-        append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=true)])
-        append!(vecs,[weinberg_vect(augmented_graph(g),e,order_mat;mirror=false)])
-
-    end
-    sort!(vecs)
-    S = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
-    return vecs[1], S
-end
-=#
 function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
     g_aug = augmented_graph(g)
     vecs = Array{Int64}[]
@@ -142,29 +125,6 @@ function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
 
 end
 
-#=
-function weinberg_find_total(index_points,vert,regions,ridge_pts,ridge_vert)
-
-    code_tot = []
-    S_tot = []
-
-    for k in 1:length(index_points)
-        if any(regions[index_points[k]] .== -1)
-            append!(code_tot,[0])
-            append!(S_tot,0)
-            continue
-        end
-
-        g, poly_pts,side = shape_find(index_points,vert,regions,ridge_pts,ridge_vert,k)
-        order_mat = [right_label(poly_pts,g,n) for n in 1:size(poly_pts,1)]
-        code_unique,S = weinberg_find(g,order_mat)
-        append!(code_tot,[code_unique])
-        append!(S_tot,S)
-    end
-
-    return code_tot, S_tot
-end
-=#
 
 function edge_neighbors(g,edge_index)
     e_neighbors = Array{Int64}(undef,0)
@@ -189,22 +149,9 @@ function weinberg2D_core(g,order_mat,N,r=2)
             total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
             order_local[i] = total_order[total_order .> 0]
         end
-        try
-            weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
-        catch
-            println(k)
-            #println(order_mat[vmap])
-            #println([e for e in edges(g_ego)])
-            i = 1
-            println(nbh)
-            println(order_mat[4])
-            #println(order_mat[vmap[i]])
-            #println(vmap_inv)
-            #total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
-            #println(total_order)
 
-            error()
-        end
+        weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
+
     end
     return code_tot,S_tot
 end
@@ -221,47 +168,6 @@ function motif_size_find(Pos,r=2;periodic=true)
     motif_lens = [length(neighborhood(g_full,k,r)) for k in 1:N]
     return motif_lens
 end
-
-function weinberg2D_old(Positions,periodic=false,r=2; α = 0)
-    N = length(Positions)
-    index_ref = [x for x in 1:N]
-    if periodic; periodic_extend!(Positions,index_ref); end
-    # All other operations are performed both periodic and non-periodic systems,
-    # but for non-periodic systems should have no effect
-    p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α = α)
-    g_full = graph_construct(simplices,length(Positions))
-
-
-    order_mat = Vector{Array{Int64}}(undef,nv(g_full))
-    for kk = 1:nv(g_full)
-        N_list = neighbors(g_full,kk)
-        theta = [atan(p[s,2]-p[kk,2], p[s,1]-p[kk,1]) for s in N_list]
-        order_mat[kk] = N_list[sortperm(theta)]
-    end
-
-    order_mat = order_mat[1:N]
-    for i = 1:N
-        order_mat[i] = map(x -> index_ref[x],order_mat[i])
-    end
-
-    rows_keep = [minimum(simplices[k,:]) <= N for k in 1:size(simplices,1)]
-    simplices_period = map.(x -> index_ref[x],simplices[rows_keep,:])
-    g_period = graph_construct(simplices_period,N)
-
-    println(N)
-    println(nv(g_period))
-
-    if periodic
-        return weinberg2D_core(g_period,order_mat,r)
-    else
-        e_2 = edge_neighbors(g_period,edge_index)
-        idx = setdiff(1:nv(g_period), e_2)
-
-        code_tot,S_tot = weinberg2D_core(g_period,order_mat,r)
-        return code_tot[idx], S_tot[idx], idx
-    end
-end
-
 
 
 function weinberg2D(path_to_dir_in,params_in,r)

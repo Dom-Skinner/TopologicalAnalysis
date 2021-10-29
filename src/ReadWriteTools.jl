@@ -86,18 +86,11 @@ function amalg2(w_tot,freq_tot)
     return accumarray_s(w_col,w_freq)
 end
 
-function write_total(Positions, Weinberg,S,Data_dir_str)
-    df = DataFrame(x = [Positions[k][1] for k in 1:length(Positions)],
-    y = [Positions[k][2] for k in 1:length(Positions)], weinberg = Weinberg, S = S)
+function write_total(idx, tvec,Data_dir_str)
+    df = DataFrame(index = idx, topological_vec = tvec)
     CSV.write(Data_dir_str*".txt",  df)
 end
-function write_total(Positions, tvec,Data_dir_str)
-    df = DataFrame(x = [Positions[k][1] for k in 1:length(Positions)],
-                   y = [Positions[k][2] for k in 1:length(Positions)],
-                   z = [Positions[k][3] for k in 1:length(Positions)],
-                   tvec = tvec)
-    CSV.write(Data_dir_str*".txt",  df)
-end
+
 function write_avg(Data_dir_str)
     dat = CSV.read(Data_dir_str*".txt")
     code_tot = dat.weinberg
