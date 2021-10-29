@@ -1,15 +1,15 @@
-module WassersteinTools
+module DistanceComputeTools
 
 
-include("VoronoiTools.jl")
-using .VoronoiTools
+include("../PointCloudTools/PointCloudTools.jl")
+using .PointCloudTools
 
-include("ReadWriteTools.jl")
+include("../ReadWriteTools.jl")
 
 #include("LocalCellularStructure.jl")
 #using .LocalCellularStructure
 
-include("NetworkDiscover.jl")
+include("../FlipGraphTools/NetworkDiscover.jl")
 include("Wasserstein.jl")
 
 export compute_flip_graph, calculate_distance_matrix,

@@ -44,7 +44,7 @@ function readin(Data_dir_str,N)
         end
         return W_arr
     else
-        dat_in = CSV.read(Data_dir_str)
+        dat_in = CSV.read(Data_dir_str,DataFrame)
         return Dict(dat_in.codes .=> dat_in.freq)
     end
 end

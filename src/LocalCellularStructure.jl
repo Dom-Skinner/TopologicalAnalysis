@@ -1,37 +1,24 @@
 module LocalCellularStructure
 
-include("DistributionTools.jl")
+include("./DistributionTools/DistributionTools.jl")
 include("ReadWriteTools.jl")
-include("DistanceTools.jl")
+include("./DistanceComputeTools/DistanceTools.jl")
 
-include("VoronoiTools.jl")
-using .VoronoiTools
+include("./PointCloudTools/PointCloudTools.jl")
+using .PointCloudTools
 
-include("WassersteinTools.jl")
-using .WassersteinTools
+include("./DistanceComputeTools/WassersteinTools.jl")
+using .DistanceComputeTools
 
-include("Tools3D.jl")
-using .Tools3D
+#include("./MotifLabelTools/Tools3D.jl")
+#using .Tools3D
 
-function find_delaunay_network(path_to_csv_in,path_out; periodic=false, α = 0,tol=0.6)
 
-    dat_in = Matrix(CSV.read(path_to_csv_in))
-    Positions = unique([dat_in[k,:] for k in 1:size(dat_in,1)])
-    dim = length(Positions[1])
-
-    if dim == 2
-        find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
-    elseif dim == 3
-        find_delaunay_network_3D(Positions,path_out, periodic=periodic, α=α,tol=tol)
-    else
-        error("Higher than 3D Delanay not currently supported")
-    end
-end
 
 
 function compute_motifs(path_to_dir_in,path_out,r)
 
-    params_in = CSV.read(path_to_dir_in*".info", delim=", ")
+    params_in = CSV.read(path_to_dir_in*".info", delim=", ",DataFrame)
     params_in = Dict(params_in.Parameter .=> params_in.value)
     if params_in["Graph type"] == "Delaunay"
 
@@ -107,12 +94,12 @@ export
         # For calculating distances
         calculate_distance_matrix,calculate_distance_matrix_parallel,
         W_dist, fill_W_distance_mat,fill_JS_distance_mat,
-        calculate_distance_matrix_lap,distance_mat_lap,geodesic_reg,
+        #calculate_distance_matrix_lap,distance_mat_lap,geodesic_reg,
 
     #    fill_SN_distance_mat, # depricated
 
         # Distribution tools
         tvec_dist,moments_find,find_dist_props,
         # Misc.
-        subsample_dist, motif_size_find
+        subsample_dist#, motif_size_find
 end

@@ -35,7 +35,6 @@ function edge_find_voronoi(p,index_points,regions)
    unique!(edge_index)
    return edge_index
 end
-#p = rand(1500,2)
 
 function circumradius(e1,e2,e3)
     # see http://mathworld.wolfram.com/Circumradius.html
@@ -77,20 +76,29 @@ function alpha_shape3D!( α_val,simplices,p)
     end
 end
 
-function alpha_shape_eval!(α_val,neighbours,simplices,p; α = 0)
+function alpha_shape_eval!(neighbours,simplices,p; α = 0)
 
+    # This function performs an alpha shape analysis. It computes the radius of
+    # circumcircle/sphere for each simplex. If the radius is too large, all points
+    # are marked as boundary points.
+
+    # first compute the radius or α_val for each simplex
+    α_val = zeros(length(simplices[:,1]))
     if size(p,2) == 3
         alpha_shape3D!(α_val,simplices,p)
     elseif size(p,2) == 2
          alpha_shape2D!(α_val,simplices,p)
     end
+
+    # select α if not specified
     if α == 0
-        α = 2*median(α_val)         # Was previously α = 2. May need to be adjusted
+        α = 2*median(α_val)
+        println("using default alpha of 2*(median alpha val) = ",α)
+    else
+        println("using custom alpha = ",α)
     end
-    #α = minimum([α;63.0]) # For the biofilms
-    println("Testing Revise.jl")
-    println("using alpha = ",α) # if there are density variations
-    #println("2 median = ",2*median(α_val)) # if there are density variations
+
+    # For simplices that are too large, mark them as edge points
     for s in 1:length(neighbours)
         if neighbours[s] > 0
             if  α_val[neighbours[s]] > α
@@ -99,12 +107,10 @@ function alpha_shape_eval!(α_val,neighbours,simplices,p; α = 0)
         end
     end
 
-    for i = 1:length(α_val)
-        α_val[i] = α_val[i] < α
-    end
 end
 
 function edge_indices_delaunay(simplices,neighbours)
+    # Identify points which are edge points.
     edge_index = Array{Int64}(undef, 0)
     for s = 1:length(simplices[:,1])
         for s2 = 1:length(simplices[1,:])
@@ -125,51 +131,30 @@ function edge_indices_delaunay(simplices,neighbours)
 end
 
 
-#=
-function Voronoi_find(Positions)
-   p = p_val(Positions)
-   vor = scipy_qhull.Voronoi(p)
-   index_points = vor.point_region.+1
-   regions = vor.regions
-   edge_index = edge_find_voronoi(p,index_points,regions)
-
-   return p, index_points, regions, edge_index
-end
-=#
-
-function Voronoi_find_shape(Positions)
-   p = p_val(Positions)
-   vor = scipy_qhull.Voronoi(p)
-   index_points = vor.point_region.+1
-   regions = vor.regions
-   vert = vor.vertices
-   ridge_vert = vor.ridge_vertices
-   ridge_pts = vor.ridge_points.+1
-
-   return index_points, regions, vert, ridge_vert, ridge_pts
-end
-
 function Delaunay_find(Positions; α = 0)
     p = p_val(Positions)
     tri = scipy_qhull.Delaunay(p)
 
     simplices = tri.simplices.+1 # convert to julia indexing
     neighbours = tri.neighbors.+1
+    println(size(neighbours))
+    println(neighbours[1])
+    # simplices contains a bunch of triangles/tetrahedrons which form the Delaunay
+    # neighbours tells you which of the triangles/tetrahedrons border each other
+    # If they border the edge, they border -1
 
-    α_val = zeros(length(simplices[:,1]))
-
-    alpha_shape_eval!(α_val,neighbours,simplices,p,α=α)
+    alpha_shape_eval!(neighbours,simplices,p,α=α)
 
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
-    return p, simplices, neighbours, edge_index,α_val
+    return p, simplices, neighbours, edge_index
 end
 
 
 
-function periodic_extend!(Coords,ref;tol=0.6)
+function periodic_extend!(Coords;tol=0.6)
     # Applies the periodic boundary conditions so that no boundary effects apply
-    # to any of the original N points.
+    # to any of the original N points. TODO: Currently assumes on a [0,1]^2 grid.
     if length(Coords[1]) == 2
         N = length(Coords)
         for i = 1:N
@@ -178,7 +163,6 @@ function periodic_extend!(Coords,ref;tol=0.6)
                     pos_mirrored = Coords[i] .+ [k1,k2]
                     if maximum(abs.(pos_mirrored .- 0.5)) < 0.5 + tol
                         push!(Coords,pos_mirrored)
-                        push!(ref,i)
 
                     end
                 end
@@ -192,7 +176,6 @@ function periodic_extend!(Coords,ref;tol=0.6)
                     pos_mirrored = Coords[i] .+ [k1,k2,k3]
                     if maximum(abs.(pos_mirrored .- 0.5)) < 0.5 + tol
                         push!(Coords,pos_mirrored)
-                        push!(ref,i)
 
                     end
                 end
@@ -201,8 +184,9 @@ function periodic_extend!(Coords,ref;tol=0.6)
     end
 end
 
-function compute_order_mat(p,g_full,index_ref)
-    # Needed for Weinberg algorithm
+function compute_order_mat(p,g_full)
+    # Needed for Weinberg algorithm. TODO: Investigate planar graph embedding
+    # algorithms, and see if we can eliminate the need for an order matrix.
     N = size(p,1)
     order_mat = Vector{Array{Int64}}(undef,nv(g_full))
     for kk = 1:nv(g_full)
@@ -211,10 +195,6 @@ function compute_order_mat(p,g_full,index_ref)
         order_mat[kk] = N_list[sortperm(theta)]
     end
 
-    order_mat = order_mat[1:N]
-    for i = 1:N
-        order_mat[i] = map(x -> index_ref[x],order_mat[i])
-    end
     return order_mat
 end
 
@@ -224,16 +204,13 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
     # include the full statistics. N.B. This is done in an incredibly inefficient
     # way right now, since there were bugs in the old version of constructing the
     # periodic graph.
-
     N = length(Positions)
-    index_ref = [x for x in 1:N]
-    if periodic; periodic_extend!(Positions,index_ref,tol=tol); end
+    if periodic; periodic_extend!(Positions,tol=tol); end
 
     # Find the Delaunay and construct the full graph
     p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α = α)
     g_full = graph_construct(simplices,length(Positions))
-    order_mat = compute_order_mat(p,g_full,index_ref)
-
+    order_mat = compute_order_mat(p,g_full)
 
     savegraph(path_out*"_graph.lgz",g_full)
 
@@ -254,14 +231,5 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
         write(io,"Tolerance, ", string(tol), "\n")
         write(io,"Original vertex number, ", string(N), "\n")
     end
-#=
-    if periodic
-        return weinberg2D_core(g_period,order_mat,N,r)
-    else
-        e_2 = edge_neighbors(g_period,edge_index)
-        idx = setdiff(1:nv(g_period), e_2)
-        code_tot,S_tot = weinberg2D_core(g_period,order_mat,N,r)
-        return code_tot[idx], S_tot[idx], idx
-    end
-    =#
+
 end

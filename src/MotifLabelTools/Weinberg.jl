@@ -196,9 +196,10 @@ function weinberg2D_core(g,order_mat,N,r=2)
             #println(order_mat[vmap])
             #println([e for e in edges(g_ego)])
             i = 1
-            println(vmap[i])
-            println(order_mat[vmap[i]])
-            println(vmap_inv)
+            println(nbh)
+            println(order_mat[4])
+            #println(order_mat[vmap[i]])
+            #println(vmap_inv)
             #total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
             #println(total_order)
 
