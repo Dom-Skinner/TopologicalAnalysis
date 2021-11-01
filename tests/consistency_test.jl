@@ -91,3 +91,8 @@ if w1 == w2
 else
     error("Failed 3D edge keep test")
 end
+
+files = readdir(testing_dir)
+files = filter(x->occursin("testing",x), files)
+files = filter(x->!occursin("old",x), files)
+rm.(testing_dir.*files)

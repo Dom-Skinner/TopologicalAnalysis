@@ -4,6 +4,9 @@ using CSV, DataFrames
 using DelimitedFiles
 using LightGraphs
 
+include("../MotifLabelTools/MotifLabelTools.jl")
+using .MotifLabelTools
+
 include("NetworkDiscover.jl")
 include("NetworkDiscover3D.jl")
 include("../ReadWriteTools.jl")

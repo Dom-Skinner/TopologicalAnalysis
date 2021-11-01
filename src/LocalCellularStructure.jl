@@ -1,5 +1,7 @@
 module LocalCellularStructure
 
+using Distributed
+
 include("./DistributionTools/DistributionTools.jl")
 include("ReadWriteTools.jl")
 include("./DistanceComputeTools/DistanceTools.jl")

@@ -334,85 +334,7 @@ function perform_flip_2B(simplex,to_create,central_vertex;r=1)
     new_simplex = unique([simplex; to_create'],dims=1)
     return topological_vec(new_simplex,central_vertex,r=r)
 end
-#=
-function find_idx_counts!(idx_seen,n_count,simplex,ij)
-    # fills out vectors idx_seen and n_count with the vertices seen and the
-    # number of times they were seen
-    #@inbounds for i = 1:4
-    for i = 1:4
-        idx_seen[i] = simplex[ij[1],i]
-        n_count[i] = 1
-    end
-    #@inbounds for i = 1:4
-    for i = 1:4
-        seen = false
-        for j=1:4
-            if idx_seen[j] == simplex[ij[2],i]
-                n_count[j] += 1
-                seen = true
-            end
-        end
-        if !seen
-            idx_seen[5] = simplex[ij[2],i]
-            n_count[5] = 1
-        end
-    end
-end
 
-function perform_2_plus_external_flip(simplex,ij,central_vertex;r=1)
-    # given 2 external simplices that can be flipped, we find the post flip
-    # simplices and return the new topological vector
-    idx_seen = zeros(Int64,5)
-    n_count = zeros(Int64,5)
-    find_idx_counts!(idx_seen,n_count,simplex,ij)
-
-    faces = [[2;3;4],[1;3;4],[1;2;4],[1;2;3]]
-    fixed_v1 = Int64[]
-    fixed_v2 = Int64[]
-    for j = 1:4
-        if face_find(simplex,ij[1],simplex[ij[1],faces[j]]) == 0
-            push!(fixed_v1,simplex[ij[1], j])
-        end
-        if face_find(simplex,ij[2],simplex[ij[2],faces[j]]) == 0
-            push!(fixed_v2,simplex[ij[2],j])
-        end
-    end
-    fixed_v = intersect(fixed_v1,fixed_v2)[1]
-    row1 = zeros(Int64,4)
-    count1 = 2
-    row2 = zeros(Int64,4)
-    count2 = 2
-
-    row1[1] = fixed_v
-    row2[1] = fixed_v
-
-    for i = 1:5
-        if n_count[i] == 1
-            row1[count1] = idx_seen[i]
-            count1 += 1
-            row2[count2] = idx_seen[i]
-            count2 += 1
-        elseif (n_count[i] == 2) && (idx_seen[i] != fixed_v)
-            if count1 == count2
-                row1[count1] = idx_seen[i]
-                count1 += 1
-            else
-                row2[count2] = idx_seen[i]
-                count2 += 1
-            end
-        end
-    end
-
-    sort!(row1)
-    sort!(row2)
-    new_simplex = copy(simplex)
-    for i = 1:4
-        new_simplex[ij[1],i] = row1[i]
-        new_simplex[ij[2],i] = row2[i]
-    end
-    return topological_vec(new_simplex,central_vertex,r=r)
-end
-=#
 function find_all_neighbors(attempt,simplex,central_vertex,edge_keep;r=1)
     # Given a local simplicial complex, this function finds all others that
     # are 1 flip away, trying type 1A,1B,2A,2B, flips along the way.
@@ -460,21 +382,6 @@ function find_all_neighbors(attempt,simplex,central_vertex,edge_keep;r=1)
     return tvec_nhbd
 end
 
-#=
-function flip_loop_1!(tvec_nhbd,tvec_tot,i)
-    # Find neighbors of tvec_tot[i] and store them in tvec_nhbd
-    if (length(tvec_tot[i]) == 1) || (maximum(tvec_tot[i]) == typemax(Int64))
-        return
-    end
-    simplex = zeros(Int64,length(tvec_tot[i]),4)
-
-    t_vec_to_simplex!(tvec_tot[i],simplex)
-    central_vertex = 1 # By convention
-    loop_num = 1
-    find_all_neighbors!(tvec_nhbd,i,loop_num,simplex,central_vertex,r=1)
-
-end
-=#
 
 function flip_1(tvec,edge_keep)
     # Find neighbors of tvec_tot[i] and store them in tvec_nhbd
@@ -504,21 +411,6 @@ function flip_2(tvec,edge_keep)
     return find_all_neighbors(loop_number,simplex,central_vertex,edge_keep,r=1)
 end
 
-#=
-function flip_loop_2!(tvec_nhbd,tvec_new,i)
-    # Find neighbors of tvec_new[i] and store them in tvec_nhbd
-    if (length(tvec_new[i]) < 2) || (maximum(tvec_new[i]) == typemax(Int64))
-        return
-    end
-
-    simplex = zeros(Int64,length(tvec_new[i]),4)
-    t_vec_to_simplex!(tvec_new[i],simplex)
-    central_vertex = 1 # By convention
-    loop_number = 2
-
-    find_all_neighbors!(tvec_nhbd,i,loop_number,simplex,central_vertex,r=1)
-end
-=#
 
 function flip_loop_2_clean_up!(g,code_to_idx, tvec_nhbd,tvec_new,k_start,k_end)
     # After loop 2 has run, add in the new graph edges
@@ -584,6 +476,8 @@ function find_flip_graph3D(tvec_tot,edge_keep,thresh)
         println("Done ", i*block_len, "out of ", length(tvec_new))
     end
 
+    println("num edges = ",ne(g))
+    println("num vertices = ",nv(g))
     # remove vertices that won't effect the diffusion calculation
     for v = nv(g) : -1 : (length(tvec_tot) +1)
         if length(neighbors(g,v)) < 2
@@ -644,20 +538,6 @@ function threshold_graph(str,thr)
     g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
     savegraph(str*"_th.lgz",g_new)
 end
-#=
-tvec_tot = []
-for i = 1:1000
-    k_nbhd = find_nbhd(simplices,i)
-    push!(tvec_tot,topological_vec(k_nbhd,i))
-end
-    unique!(tvec_tot)
-
-
-
-simplex = zeros(Int64,length(tvec_tot[1]),4)
-t_vec_to_simplex!(tvec_tot[1],simplex)
-@profiler g = find_flip_graph3D(tvec_tot)
-=#
 
 
 function readin_(Data_dir_str,N)
