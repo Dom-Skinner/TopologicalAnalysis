@@ -139,8 +139,6 @@ function Delaunay_find(Positions,α)
 
     simplices = tri.simplices.+1 # convert to julia indexing
     neighbours = tri.neighbors.+1
-    println(size(neighbours))
-    println(neighbours[1])
     # simplices contains a bunch of triangles/tetrahedrons which form the Delaunay
     # neighbours tells you which of the triangles/tetrahedrons border each other
     # If they border the edge, they border -1
@@ -187,19 +185,6 @@ function periodic_extend!(Coords;tol=0.6)
     end
 end
 
-function compute_order_mat(p,g_full)
-    # Needed for Weinberg algorithm. TODO: Investigate planar graph embedding
-    # algorithms, and see if we can eliminate the need for an order matrix.
-    N = size(p,1)
-    order_mat = Vector{Array{Int64}}(undef,nv(g_full))
-    for kk = 1:nv(g_full)
-        N_list = neighbors(g_full,kk)
-        theta = [atan(p[s,2]-p[kk,2], p[s,1]-p[kk,1]) for s in N_list]
-        order_mat[kk] = N_list[sortperm(theta)]
-    end
-
-    return order_mat
-end
 
 function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
 
@@ -213,16 +198,11 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
     # Find the Delaunay and construct the full graph
     p, simplices, neighbrs, edge_index = Delaunay_find(Positions, α)
     g_full = graph_construct(simplices,length(Positions))
-    order_mat = compute_order_mat(p,g_full)
 
     savegraph(path_out*"_graph.lgz",g_full)
 
     open(path_out*"_edge_nodes.txt", "w") do io
            writedlm(io, edge_index)
-    end
-
-    open(path_out*"_order_mat.txt", "w") do io
-           writedlm(io, order_mat)
     end
 
     open(path_out*".info", "w") do io

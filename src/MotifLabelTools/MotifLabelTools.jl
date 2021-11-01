@@ -6,6 +6,7 @@ using LightGraphs
 
 include("Labelling3D.jl")
 include("Weinberg.jl")
+include("../GraphConstruct.jl")
 include("../ReadWriteTools.jl")
 
 

@@ -7,26 +7,16 @@ include("./DistanceComputeTools/DistanceTools.jl")
 include("./PointCloudTools/PointCloudTools.jl")
 using .PointCloudTools
 
-include("./DistanceComputeTools/WassersteinTools.jl")
-using .DistanceComputeTools
-
 include("./MotifLabelTools/MotifLabelTools.jl")
 using .MotifLabelTools
 
+include("./FlipGraphTools/FlipGraphTools.jl")
+using .FlipGraphTools
+
+include("./DistanceComputeTools/WassersteinTools.jl")
+using .DistanceComputeTools
 
 
-
-
-function compute_flip(Data_dir; restrict = 0, edge_keep = false, dimension = 2,thresh=1.5)
-    str_arr = filter(x->occursin("avg.txt",x), readdir(Data_dir))
-    weight = amalg2([readin(Data_dir*s,0) for s in str_arr])
-    keep = [w[2]>restrict for w in weight]
-    if dimension == 2
-        compute_flip_graph(weight[keep],Data_dir*"w_network")
-    else
-        compute_flip_graph3D(weight[keep],Data_dir*"w_network",edge_keep,thresh)
-    end
-end
 
 export
         # For reading/writing

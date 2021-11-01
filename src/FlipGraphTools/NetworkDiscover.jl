@@ -3,97 +3,6 @@ using Base.Threads
 using DataFrames,CSV
 
 
-#=
-function center_test(g,ret)
-    # Tests the points ret to see if they could be the central node. First find
-    # The edges to see if they are at the edge of the network. The central node
-    # should not be neighbors with any points attached to one of these edges
-    edge_pts = []
-    for e in edges(g)
-        if length(intersect(neighbors(g,dst(e)),neighbors(g,src(e)))) == 1
-            push!(edge_pts,src(e))
-            push!(edge_pts,dst(e))
-        end
-    end
-    unique!(edge_pts)
-    rret = [];
-    for r in ret
-        if length(intersect(neighbors(g,r),edge_pts)) == 0
-             push!(rret,r)
-        end
-    end
-    return rret
-end
-
-function central_node(g)
-    # Central node should be the point that is distance ≦ 2 from all other
-    # points. If there are multiple such points, apply function center_test
-    N = nv(g)
-    ret = []
-    for i = 1:N
-        if length(neighborhood(g,i,2)) == N
-            push!(ret,i)
-        end
-    end
-    if length(ret) == 1
-        return ret
-    else
-        rret = center_test(g,ret)
-        return rret
-    end
-end
-=#
-function tutte_embedding(g)
-    # This function creates a Tutte embedding of the graph.
-    fixed_vecs = []
-    for e in edges(g)
-        if length(intersect(neighbors(g,src(e)),neighbors(g,dst(e)))) == 1
-            push!(fixed_vecs,src(e))
-            push!(fixed_vecs,dst(e))
-            push!(fixed_vecs,intersect(neighbors(g,src(e)),neighbors(g,dst(e)))[1])
-            break
-        end
-    end
-    if length(fixed_vecs) != 3
-        for e in edges(g)
-            println(e)
-        end
-        for e in edges(g)
-            push!(fixed_vecs,src(e))
-            push!(fixed_vecs,dst(e))
-            push!(fixed_vecs,intersect(neighbors(g,src(e)),neighbors(g,dst(e)))[1])
-            break
-        end
-        println("TODO: code the degenerate case...")
-        # degenerate case being when there are no edges attached to only a single triangle
-    end
-    A = float(adjacency_matrix(g))
-    D = [sum(A[i,:]) for i in 1:size(A,1)]
-    for i = 1:size(A,1)
-       for j in 1:size(A,2)
-           if A[i,j] != 0
-               A[i,j] /= D[i]
-           end
-       end
-    end
-    for i = 1:size(A,1)
-        A[i,i] -= 1
-    end
-
-    x = zeros(nv(g)) ;      y = zeros(nv(g))
-    x[fixed_vecs[1]] = 0.;  y[fixed_vecs[1]] = 0.;
-    x[fixed_vecs[2]] = 0.;  y[fixed_vecs[2]] = 1.;
-    x[fixed_vecs[3]] = 1.;  y[fixed_vecs[3]] = 0.;
-    bx = A*x ; by = A*y
-    keep_idx = [k ∉ fixed_vecs for k in 1:nv(g)]
-    bx = bx[keep_idx] ;  by = by[keep_idx]
-    A = A[keep_idx,keep_idx]
-
-    x[keep_idx] = - A \ bx
-    y[keep_idx] = - A \ by
-    return x,y,fixed_vecs
-end
-
 function circ_insert!(M,pair_set,val)
     idx1 = findfirst(x-> x ∈ pair_set , M)
     idx2 = findlast(x-> x ∈ pair_set , M)
@@ -139,17 +48,6 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2,r)
         error("..")
     end
     return code_tot[1]
-end
-
-function order_mat_find(g,x,y)
-    # Finds the order mat given the graph and it's embedding
-    order_mat = Vector{Array{Int64}}(undef,nv(g))
-    for kk = 1:nv(g)
-        N_list = neighbors(g,kk)
-        theta = [atan(y[s]-y[kk], x[s]-x[kk]) for s in N_list]
-        order_mat[kk] = N_list[sortperm(theta)]
-    end
-    return order_mat
 end
 
 function return_nbh_vertex(order_arr,v)

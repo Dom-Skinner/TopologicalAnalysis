@@ -135,7 +135,7 @@ function edge_neighbors(g,edge_index)
 end
 
 
-function weinberg2D_core(g,order_mat,N,r=2)
+function weinberg2D_core(g,N,r=2)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
 
@@ -143,12 +143,9 @@ function weinberg2D_core(g,order_mat,N,r=2)
         nbh  = neighborhood(g,k,r)
         g_ego, vmap = induced_subgraph(g,nbh)
         vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
-        order_local = order_mat[vmap]
 
-        for i = 1:length(vmap)
-            total_order = map.(x -> get(vmap_inv, x, -1), order_mat[vmap[i]])
-            order_local[i] = total_order[total_order .> 0]
-        end
+        x,y,fixed_vecs = tutte_embedding(g_ego)
+        order_local = order_mat_find(g_ego,x,y)
 
         weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
 
@@ -173,7 +170,6 @@ end
 function weinberg2D(path_to_dir_in,params_in,r)
 
     g = loadgraph(path_to_dir_in*"_graph.lgz")
-    order_mat = map.(s -> parse(Int64, s), split.(eachline(path_to_dir_in*"_order_mat.txt"),'\t'))
     edge_index = readdlm(path_to_dir_in*"_edge_nodes.txt", '\t', Int, '\n')
     periodic = (params_in["Periodic"] == "True")
 
@@ -183,7 +179,7 @@ function weinberg2D(path_to_dir_in,params_in,r)
         N = nv(g)
     end
 
-    code_tot,S_tot = weinberg2D_core(g,order_mat,N,r)
+    code_tot,S_tot = weinberg2D_core(g,N,r)
     idx = 1:N
 
     if !periodic
