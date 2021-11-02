@@ -35,3 +35,5 @@ label_3D(Positions, testing_dir*"testing_3D_non_periodic_custom_alpha_old",
 
 
 compute_flip(testing_dir*"3D_test/";restrict=0,dimension=3,edge_keep = true,thresh=0.5)
+
+compute_flip(testing_dir*"2D_test/";restrict=0,dimension=2)

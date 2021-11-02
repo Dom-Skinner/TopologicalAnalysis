@@ -30,6 +30,6 @@ function compute_motifs(path_to_dir_in,path_out,r=1)
 end
 
 export compute_motifs, motif_size_find, t_vec_to_simplex!,
-       topological_vec_mem_save,topological_vec
+       topological_vec_mem_save,topological_vec, weinberg_find!
 
 end
