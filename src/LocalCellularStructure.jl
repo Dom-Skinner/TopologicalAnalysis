@@ -15,7 +15,7 @@ using .MotifLabelTools
 include("./FlipGraphTools/FlipGraphTools.jl")
 using .FlipGraphTools
 
-include("./DistanceComputeTools/WassersteinTools.jl")
+include("./DistanceComputeTools/DistanceComputeTools.jl")
 using .DistanceComputeTools
 
 
@@ -28,11 +28,11 @@ export
         weinberg_find!, label_3D,find_delaunay_network,
 
         # For computing flip graph
-        compute_flip_graph, compute_flip, compute_motifs
+        compute_flip_graph, compute_flip, compute_motifs,
 
         # For calculating distances
-        calculate_distance_matrix,calculate_distance_matrix_parallel,
-        W_dist, fill_W_distance_mat,fill_JS_distance_mat,
+        calculate_distance_matrix,
+        fill_W_distance_mat,fill_JS_distance_mat,
         #calculate_distance_matrix_lap,distance_mat_lap,geodesic_reg,
 
     #    fill_SN_distance_mat, # depricated

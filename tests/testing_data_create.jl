@@ -37,3 +37,15 @@ label_3D(Positions, testing_dir*"testing_3D_non_periodic_custom_alpha_old",
 compute_flip(testing_dir*"3D_test/";restrict=0,dimension=3,edge_keep = true,thresh=0.5)
 
 compute_flip(testing_dir*"2D_test/";restrict=0,dimension=2)
+
+
+path_out = testing_dir*"2D_test/testing_2D_alpha"
+network_save_file = testing_dir*"2D_test/w_network"
+weight_original = readin(path_out*"_old_avg.txt",0)
+Random.seed!(1234)
+weight_arr = [Dict(keys(weight_original) .=> [rand(1:100) for k in keys(weight_original)]) for i = 1:3]
+res = calculate_distance_matrix(network_save_file,weight_arr)
+CSV.write(path_out*"_old_OT_distance.txt",DataFrame(res))
+
+res = calculate_distance_matrix_lap(network_save_file,weight_arr)
+CSV.write(path_out*"_old_Diff_distance.txt",DataFrame(res))

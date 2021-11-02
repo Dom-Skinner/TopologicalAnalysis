@@ -27,7 +27,7 @@ function load_w_graph(network_save_file)
     # Wrapper to load the flip graph, and to reduce to the largest connected comp
     g = lg.loadgraph(network_save_file*".lgz")
     #gplot(g)
-    dat_in = CSV.read(network_save_file*".txt")
+    dat_in = CSV.read(network_save_file*".txt",DataFrame)
     W_code_to_idx = Dict(dat_in.codes .=> dat_in.index)
     W_idx_to_code = Dict(dat_in.index .=> dat_in.codes)
 
@@ -70,7 +70,7 @@ function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
         end
     end
     # call min cost flow
-    flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, Clp.Optimizer,#Solver(),#GurobiSolver(Presolve=0),#ClpSolver(),
+    flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, Clp.Optimizer,
                 edge_demand=demand, source_nodes=[Nv+1], sink_nodes=[Nv+2])
     if ret_flow
         return flow
@@ -187,61 +187,13 @@ function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
         return q,val
 end
 
+function distance_OT(g,W)
 
-function calculate_distance_matrix(network_save_file,w_vec_in)
-    # This function is a wrapper for all other functions in this file
-    # from n dictionaries in and the path to the load_graph file it returns the
-    # n by n distance matrix
-    g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
-    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
-
-    return distance_mat(g,weight)
-end
-
-function calculate_distance_matrix_parallel(network_save_file,w_vec_in)
-    # If we want to write our own parallel distance matrix function
-    g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
-    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
-
-    return g,weight
-end
-
-#=
-weight = []
-for i = 1:7
-    push!(weight,ret_weights(w_ells[i],N,W_code_to_idx,vmap))
-    push!(weight,ret_weights(w_spheres[i],N,W_code_to_idx,vmap))
-    push!(weight,ret_weights(w_PV[i],N,W_code_to_idx,vmap))
-    push!(weight,ret_weights(w_exp[i],N,W_code_to_idx,vmap))
-end
-=#
-
-#=
-using MultivariateStats
-using Plots
-
-Out = permutedims(transform(fit(MDS, d, maxoutdim=2, distances=true)))
-savefig(plot_res(Out),"MDS.pdf")
-
-function make_heatmap(d)
-    idx = [collect(1:4:28);collect(2:4:28);collect(3:4:28);collect(4:4:28)]
-    d2 = similar(d)
-    for i=1:28
-        for j = 1:28
-             d2[i,j] = d[idx[i],idx[j]]
-         end
-     end
-    p = heatmap(d2,colorbar_title="W distance",xlabel="Sample number",
-            ylabel="Sample number", dpi = 350,c=:BuGn)
-    savefig(p, "Corellation.png")
-end
-function plot_res(Out)
-    names = ["Ellipsoids","Spheres","Poisson-Voronoi","Experiments"]
-    p = scatter()
-    for i = 1:4
-        idx = 0:4:(size(Out,1)-4)
-        scatter!(p,Out[i.+idx,1],Out[i.+idx,2],color=i,label=names[i])
+    try
+    	d =  W_dist(g,W)
+        return d
+    catch
+    	d = W_dist(g,-W)
+        return d
     end
-    return p
 end
-=#

@@ -3,7 +3,8 @@ using Distributed
 using Revise
 using LocalCellularStructure
 using LightGraphs
-
+using Random
+using CSV,DataFrames
 
 testing_dir = homedir()*"/.julia/dev/LocalCellularStructure/tests/data/"
 
@@ -41,4 +42,28 @@ if g1 == g2
     println("2D network test passed")
 else
     error("Failed 2D network test")
+end
+
+
+
+path_out = testing_dir*"2D_test/testing_2D_alpha"
+network_save_file = testing_dir*"2D_test/w_network"
+weight_original = readin(path_out*"_old_avg.txt",0)
+Random.seed!(1234)
+weight_arr = [Dict(keys(weight_original) .=> [rand(1:100) for k in keys(weight_original)]) for i = 1:3]
+
+res = calculate_distance_matrix(network_save_file,weight_arr)
+res_old = Matrix(CSV.read(path_out*"_old_OT_distance.txt",DataFrame))
+if res == res_old
+    println("OT distance test passed")
+else
+    error("OT distance test failed")
+end
+
+res = calculate_distance_matrix(network_save_file,weight_arr,optimal_transport=false)
+res_old = Matrix(CSV.read(path_out*"_old_Diff_distance.txt",DataFrame))
+if res == res_old
+    println("Diffusion distance test passed")
+else
+    error("Diffusion distance test failed")
 end
