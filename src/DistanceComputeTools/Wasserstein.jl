@@ -79,35 +79,6 @@ function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
     end
 end
 
-
-function distance_mat(g,weight)
-    d = zeros(length(weight),length(weight))
-    for i = 1:size(d,1)
-    Threads.@threads for j=(i+1):size(d,2)
-                    W = weight[i] .- weight[j]
-                    d[i,j] = W_dist(g,sign(sum(W))*W + W*(sign(sum(W)) == 0))
-                    d[j,i] = d[i,j]
-                    #println("i= ",i, " j = ", j)
-                    #println(d[i,j])
-                end
-        println(100*i/size(d,1))
-    end
-    println("Catching exceptions")
-    #This is a HACK
-    for i = 1:size(d,1)
-    Threads.@threads for j=(i+1):size(d,2)
-                    if d[i,j] == 0
-                        W = weight[i] .- weight[j]
-                        d[i,j] = W_dist(g,-sign(sum(W))*W + W*(sign(sum(W)) == 0))
-                        d[j,i] = d[i,j]
-                    end
-                end
-        println(100*i/size(d,1))
-    end
-
-    return d
-end
-
 function sample_dist(probs,N)
     w = StatsBase.Weights(probs)
     p_emp = zeros(length(probs))

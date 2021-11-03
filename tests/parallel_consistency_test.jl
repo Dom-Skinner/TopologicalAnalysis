@@ -52,16 +52,20 @@ weight_original = readin(path_out*"_old_avg.txt",0)
 Random.seed!(1234)
 weight_arr = [Dict(keys(weight_original) .=> [rand(1:100) for k in keys(weight_original)]) for i = 1:3]
 
-res = calculate_distance_matrix(network_save_file,weight_arr)
+
+calculate_distance_matrix(network_save_file,path_out*"_OT_",weight_arr,optimal_transport=true)
 res_old = Matrix(CSV.read(path_out*"_old_OT_distance.txt",DataFrame))
+res = Matrix(CSV.read(path_out*"_OT_distance_matrix.txt",DataFrame))
 if res == res_old
     println("OT distance test passed")
 else
-    error("OT distance test failed")
+    println(maximum(res .- res_old))
+    println("OT distance test maybe failed")
 end
 
-res = calculate_distance_matrix(network_save_file,weight_arr,optimal_transport=false)
+calculate_distance_matrix(network_save_file,path_out*"_Diff_",weight_arr,optimal_transport=false)
 res_old = Matrix(CSV.read(path_out*"_old_Diff_distance.txt",DataFrame))
+res = Matrix(CSV.read(path_out*"_Diff_distance_matrix.txt",DataFrame))
 if res == res_old
     println("Diffusion distance test passed")
 else
