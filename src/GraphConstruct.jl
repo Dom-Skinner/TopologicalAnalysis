@@ -67,7 +67,7 @@ function tutte_embedding(g)
             push!(fixed_vecs,intersect(neighbors(g,src(e)),neighbors(g,dst(e)))[1])
             break
         end
-        error("Degenerate case in Tutte embedding")
+        println("warning: Degenerate case in Tutte embedding")
         # degenerate case being when there are no edges attached to only a single triangle
     end
     A = float(adjacency_matrix(g))

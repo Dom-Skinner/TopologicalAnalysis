@@ -238,7 +238,10 @@ function topological_vec_mem_save(nbhd,k_nbhd,central_vertex;r=1)
     nbhd_unique = unique(k_nbhd)
     N = length(nbhd_unique)
     if N > 62
-        error("Too many to store in int64")
+        println("Too many to store in int64")
+        println(N)
+        println(nbhd_unique)
+        return []
     end
 
     for i in 1:length(nbhd_unique)
