@@ -168,3 +168,12 @@ function distance_OT(g,W)
         return d
     end
 end
+
+function rem_self_edges!(g)
+    # Removes self loops
+    for e in collect(lg.edges(g))
+        if lg.src(e) == lg.dst(e)
+            lg.rem_edge!(g,e)
+        end
+    end
+end

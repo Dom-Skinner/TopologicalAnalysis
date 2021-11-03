@@ -1,10 +1,13 @@
 module DistanceComputeTools
 using Distributed
+using LightGraphs
+using IterativeSolvers
+using SparseArrays
+using LinearAlgebra
 
 include("../ReadWriteTools.jl")
 
 include("Wasserstein.jl")
-include("DiffusionDist.jl")
 
 
 function calculate_distance_matrix(network_save_file,path_out,w_vec_in; optimal_transport= true)
@@ -24,16 +27,6 @@ function triangle_index(k)
 	T = n ->Int(0.5*n*(n+1))
 	kk = Int(ceil( sqrt(2*k + 0.25) - 0.5))
 	return k - T(kk-1),kk + 1
-end
-
-
-function rem_self_edges!(g)
-    # Removes self loops
-    for e in collect(edges(g))
-        if src(e) == dst(e)
-            rem_edge!(g,e)
-        end
-    end
 end
 
 
