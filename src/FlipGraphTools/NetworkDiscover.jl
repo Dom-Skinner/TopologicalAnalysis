@@ -1,6 +1,7 @@
 using LightGraphs
 using Base.Threads
 using DataFrames,CSV
+using Distributed
 
 
 function circ_insert!(M,pair_set,val)
@@ -99,40 +100,37 @@ function w_vec_neighbors(w_in,r)
     return w_neighbors
 end
 
+function flip_core_parallel(x,r)
+    return w_vec_neighbors(Int.(Meta.parse(x).args),r)
+end
+
 function compute_flip_graph(code_amalg,save_str;r=2)
     vector_to_idx = Dict(code_amalg[k][1] => k for k in 1:size(code_amalg,1))
 
-    #splock = SpinLock()
     w_network = SimpleGraph(size(code_amalg,1))
-    #Threads.@threads
-    for i = 1:size(code_amalg,1)
+    code_amalg = [code_amalg[i][1] for i = 1:size(code_amalg,1)]
 
-        w = code_amalg[i][1]
-        w_num = Meta.parse(w)
-        w_nb = w_vec_neighbors(Int.(w_num.args),r)
+    block_len = 1000 # to save memory
+    nloop = Int(round(length(code_amalg)/block_len))
 
-    #    lock(splock)
-        for nb in w_nb
-            if haskey(vector_to_idx,string(nb))
-                add_edge!(w_network,vector_to_idx[string(nb)],i)
+
+    for i = 1:nloop
+        k_start = (i-1)*block_len + 1
+        k_end = minimum([i*block_len ;length(code_amalg)])
+        w_vec_nb = pmap(x->flip_core_parallel(x,r),code_amalg[k_start:k_end])
+        for k = k_start:k_end
+            for nb in w_vec_nb[k-k_start+1]
+                if haskey(vector_to_idx,string(nb))
+                    add_edge!(w_network,vector_to_idx[string(nb)],k)
+                end
             end
         end
-    #    unlock(splock)
-
+        println("Done ", i*block_len, "out of ", length(code_amalg))
     end
 
+
     savegraph( save_str*".lgz", w_network)
-    df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
+    df = DataFrame(codes = [code_amalg[k] for k in 1:size(code_amalg,1)],
         index = [k for k in 1:size(code_amalg,1)])
     CSV.write(save_str*".txt",  df)
 end
-
-
-#=
-# Here is an example as to how to use the functions in this file
-Data_dir = "/Users/Dominic/Documents/2d Cells/Data/"
-w_tot = readin(Data_dir*"PV/PoissonVoronoi_",1)
-code_amalg = amalg2(w_tot)
-save_str = Data_dir*"w_network_t"
-compute_flip_graph(code_amalg,save_str)
-=#

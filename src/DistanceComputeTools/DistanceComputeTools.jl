@@ -10,16 +10,30 @@ include("../ReadWriteTools.jl")
 include("Wasserstein.jl")
 
 
+function calculate_distance_matrix(network_save_file, decode_save_file,file_out,
+		str_arr; optimal_transport= true)
+    # This function is a wrapper for all other functions in this file
+    # from n dictionaries in and the path to the load_graph file it returns the
+    # n by n distance matrix
+	w_vec_in = [readin(s,0) for s in str_arr]
+	g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file, decode_save_file)
+    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
+
+    d =  distance_mat(g,weight,optimal_transport)
+	CSV.write(file_out,DataFrame(d))
+
+end
+
+
 function calculate_distance_matrix(network_save_file,path_out,w_vec_in; optimal_transport= true)
     # This function is a wrapper for all other functions in this file
     # from n dictionaries in and the path to the load_graph file it returns the
     # n by n distance matrix
+
     g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
     weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
-
     d =  distance_mat(g,weight,optimal_transport)
-	CSV.write(path_out*"distance_matrix.txt",DataFrame(d))
-
+	CSV.write(path_out,DataFrame(d))
 end
 
 function triangle_index(k)
@@ -36,8 +50,9 @@ function distance_mat(g,weight,optimal_transport)
 	W = [weight[triangle_index(i)[1]] .- weight[triangle_index(i)[2]]  for i = 1:n_needed]
 	rem_self_edges!(g)
 
+
 	if optimal_transport
-		f = x -> distance_OT(g,x)
+		f = x -> W_dist(g,x)
 	else
 		L = float.(laplacian_matrix(g))
 		D = float.(incidence_matrix(g,oriented=true))
@@ -45,6 +60,7 @@ function distance_mat(g,weight,optimal_transport)
 	end
 
 	d_flat = pmap(f,W)
+	#d_flat = f.(W)
 	for i  = 1:n_needed
 		d[triangle_index(i)[1],triangle_index(i)[2]] = d_flat[i]
 		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
@@ -52,5 +68,5 @@ function distance_mat(g,weight,optimal_transport)
 	return d
 end
 
-export  calculate_distance_matrix, geodesic_reg
+export  calculate_distance_matrix, geodesic_reg,load_w_graph
 end

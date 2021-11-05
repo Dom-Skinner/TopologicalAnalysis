@@ -25,7 +25,7 @@ export
         readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,
 
         # For computing topological types
-        weinberg_find!, label_3D,find_delaunay_network,
+        weinberg_find!, label_3D,find_delaunay_network,load_w_graph,
 
         # For computing flip graph
         compute_flip_graph, compute_flip, compute_motifs,

@@ -59,15 +59,12 @@ function tutte_embedding(g)
     end
     if length(fixed_vecs) != 3
         for e in edges(g)
-            println(e)
-        end
-        for e in edges(g)
             push!(fixed_vecs,src(e))
             push!(fixed_vecs,dst(e))
             push!(fixed_vecs,intersect(neighbors(g,src(e)),neighbors(g,dst(e)))[1])
             break
         end
-        println("warning: Degenerate case in Tutte embedding")
+        #println("warning: Degenerate case in Tutte embedding")
         # degenerate case being when there are no edges attached to only a single triangle
     end
     A = float(adjacency_matrix(g))

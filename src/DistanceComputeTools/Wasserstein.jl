@@ -23,18 +23,20 @@ function ret_weights(dict_w,N,W_code_to_idx,vmap)
     return weight_arr./sum(weight_arr)
 end
 
-function load_w_graph(network_save_file)
+function load_w_graph(path_in)
+    return load_w_graph(path_in*".lgz",path_in*".txt")
+end
+function load_w_graph(network_save_file,network_decode_file)
     # Wrapper to load the flip graph, and to reduce to the largest connected comp
-    g = lg.loadgraph(network_save_file*".lgz")
+    g = lg.loadgraph(network_save_file)
     #gplot(g)
-    dat_in = CSV.read(network_save_file*".txt",DataFrame)
+    dat_in = CSV.read(network_decode_file,DataFrame)
     W_code_to_idx = Dict(dat_in.codes .=> dat_in.index)
     W_idx_to_code = Dict(dat_in.index .=> dat_in.codes)
 
     ccomp = lg.connected_components(g)
     idx = argmax([length(c) for c in ccomp])
     g_con, vmap = lg.induced_subgraph(g, ccomp[idx])
-
     return g_con,vmap,lg.nv(g),W_code_to_idx,W_idx_to_code
 end
 
@@ -42,6 +44,7 @@ function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
 
     # First create a directed version of g_undirected with edges in both
     # directions and capacities/costs equal to 1
+
     Nv = lg.nv(g_undirected)
     g = lg.DiGraph(Nv+2) # Create a flow-graph
     w = spzeros(Nv+2,Nv+2)
@@ -69,6 +72,11 @@ function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
 
         end
     end
+    println("Is connected?: ", lg.is_connected(g))
+    println("Demand ", sum(demand))
+    println("Sum S ", sum(S))
+    println("Out capacity ", sum(capacity[Nv+1,:]))
+    println("In capacity ", sum(capacity[:,Nv+2]))
     # call min cost flow
     flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, Clp.Optimizer,
                 edge_demand=demand, source_nodes=[Nv+1], sink_nodes=[Nv+2])
