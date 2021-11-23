@@ -35,6 +35,13 @@ function readin!(w_tot,freq_tot,Data_dir_str,N)
       push!(freq_tot,dat_in.freq)
     end
 end
+
+function readin(Data_dir_str)
+    dat_in = CSV.read(Data_dir_str,DataFrame)
+    return Dict(dat_in.codes .=> dat_in.freq)
+end
+
+#=
 function readin(Data_dir_str,N)
     if N > 0
         W_arr = Array{Dict}(undef,0)
@@ -64,6 +71,7 @@ function readin(Data_dir_str)
     end
     return W_arr
 end
+=#
 
 function amalg2(w_tot)
     count_tot = Dict{String,Int64}()
@@ -73,6 +81,17 @@ function amalg2(w_tot)
         end
     end
     return sort(collect(count_tot), by = tuple -> last(tuple), rev=true)
+end
+
+
+function combine_distributions(dict_array)
+    count_tot = Dict{String,Int64}()
+    for i = 1:length(dict_array)
+        for k in collect(keys(dict_array[i]))
+            count_tot[k]= get(count_tot, k,0) + Int(dict_array[i][k])
+        end
+    end
+    return Dict(sort(collect(count_tot), by = tuple -> last(tuple), rev=true))
 end
 
 

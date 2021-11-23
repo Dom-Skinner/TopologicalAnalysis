@@ -22,7 +22,7 @@ using .DistanceComputeTools
 
 export
         # For reading/writing
-        readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,
+        readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,combine_distributions,
 
         # For computing topological types
         weinberg_find!, label_3D,find_delaunay_network,load_w_graph,
