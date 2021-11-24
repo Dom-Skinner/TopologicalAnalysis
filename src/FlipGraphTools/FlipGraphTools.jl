@@ -19,7 +19,8 @@ function compute_flip(data_dir_in::String, path_out; restrict = 0, edge_keep = f
 end
 
 function compute_flip(str_arr, path_out; restrict = 0, edge_keep = false, dimension = 2,thresh=1.5)
-    weight = amalg2([readin(s,0) for s in str_arr])
+    #weight = combine_distributions([readin(s) for s in str_arr])
+    weight = amalg2(readin.(str_arr))
     keep = [w[2]>restrict for w in weight]
     if dimension == 2
         compute_flip_graph(weight[keep],path_out)
