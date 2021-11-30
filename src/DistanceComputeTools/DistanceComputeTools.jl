@@ -20,7 +20,7 @@ function calculate_distance_matrix(network_save_file, decode_save_file,file_out,
     weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
 
     d =  distance_mat(g,weight,optimal_transport)
-	CSV.write(file_out,DataFrame(d))
+	CSV.write(file_out,DataFrame(d,str_arr))
 
 end
 
