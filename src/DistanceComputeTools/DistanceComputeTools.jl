@@ -15,7 +15,7 @@ function calculate_distance_matrix(network_save_file, decode_save_file,file_out,
     # This function is a wrapper for all other functions in this file
     # from n dictionaries in and the path to the load_graph file it returns the
     # n by n distance matrix
-	w_vec_in = [readin(s,0) for s in str_arr]
+	w_vec_in = readin.(str_arr)
 	g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file, decode_save_file)
     weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
 
