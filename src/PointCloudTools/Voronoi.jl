@@ -54,7 +54,12 @@ function circumradius3D(e1,e2,e3,e4)
     Dy = det(e_mat[:,[1:2; 4:5]])
     Dz = det(e_mat[:,[1:3; 5]])
     c = det(e_mat[:,1:4])
-    return sqrt(Dx^2+Dy^2+Dz^2-4*a*c)/(2*abs(a))
+    r = Dx^2+Dy^2+Dz^2-4*a*c
+    if r >= 0 
+    	return sqrt(r)/(2*abs(a))
+    else
+    	return Inf # infinite radius
+    end
 end
 
 function alpha_shape2D!( α_val,simplices,p)
