@@ -33,7 +33,7 @@ function calculate_distance_matrix(network_save_file,path_out,w_vec_in; optimal_
     g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
     weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
     d =  distance_mat(g,weight,optimal_transport)
-	CSV.write(path_out,DataFrame(d))
+	CSV.write(path_out,DataFrame(d,:auto))
 end
 
 function triangle_index(k)

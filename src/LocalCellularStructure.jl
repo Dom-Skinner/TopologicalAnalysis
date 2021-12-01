@@ -2,6 +2,7 @@ module LocalCellularStructure
 
 using Distributed
 
+
 include("./DistributionTools/DistributionTools.jl")
 include("ReadWriteTools.jl")
 include("./DistanceComputeTools/DistanceTools.jl")
@@ -35,7 +36,7 @@ export
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # Distribution tools
-        tvec_dist,moments_find,find_dist_props,
+        tvec_dist,moments_find,find_dist_props,TWpdf,
         # Misc.
         subsample_dist, motif_size_find
 end

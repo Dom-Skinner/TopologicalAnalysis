@@ -1,6 +1,9 @@
+using Distributions
+using ForwardDiff
+using RandomMatrices
 # Tools for investigating how the distribution of motif sizes vary. To be expanded
 
-function tvec_dist(weight,dim="2D",N_ret=false)
+function tvec_dist(weight; N_ret=false)
     # find the distribution of tvecs lengths and probabilities
 
     # Takes too long to parse as integers, so do everything as strings
@@ -28,7 +31,7 @@ function moments_find(x,p,n=2)
         skew = sum((x .- μ).^3 .*p)
         return μ,σ2,skew
     else
-        error("Todo")
+        error("TODO: Implement moments higher than n=3")
     end
 end
 
@@ -43,7 +46,13 @@ function find_dist_props(weights_arr)
         l_mean[i] = μ
         l_var[i]  = σ
         l_skew[i] = γ
-        println(100.0 *i / length(weights_arr))
     end
     return l_mean,l_var,l_skew
 end
+
+TWcdf(x,beta) = cdf(TracyWidom(),x,beta=beta)
+TWpdf(s::Number,beta=1) = ForwardDiff.derivative(x->TWcdf(x,beta), s)[1]
+TWpdf(s::Vector,beta=1) = [ForwardDiff.derivative(x->TWcdf(x,beta), s1)[1] for s1 in s]
+TWpdf(s::StepRangeLen,beta=1) = [ForwardDiff.derivative(x->TWcdf(x,beta), s1)[1] for s1 in s]
+Gaussian(x,μ,σ) = 1/sqrt(2*π*σ^2)*exp.(-(x .- μ).^2 / 2 / σ^2)
+log_normal(x,μ,σ) = 1 ./x /σ/sqrt(2*π).* exp.( -(log.(x) .- μ).^2 ./2 ./ σ^2)
