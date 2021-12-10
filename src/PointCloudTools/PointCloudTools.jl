@@ -10,6 +10,11 @@ function find_delaunay_network(path_to_csv_in, path_out; periodic=false, alpha =
 
     dat_in = Matrix(CSV.read(path_to_csv_in,DataFrame))
     Positions = unique([dat_in[k,:] for k in 1:size(dat_in,1)])
+
+    if length(Positions) != size(dat_in,1)
+        println("Warning: Input file contains duplicate points.\n Recommended to rerun with duplicates removed")
+    end
+
     dim = length(Positions[1])
 
     if dim == 2
