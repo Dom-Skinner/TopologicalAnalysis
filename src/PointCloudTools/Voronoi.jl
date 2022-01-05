@@ -76,9 +76,10 @@ end
 function edge_indices_delaunay(simplices,neighbours)
     # Identify points which are edge points.
     edge_index = Array{Int64}(undef, 0)
-    for i = 1:size(simplices,1), j = 1:size(simplices,2)
+    dim = size(simplices,2)
+    for i = 1:size(simplices,1), j = 1:dim
             if neighbours[i,j]< 1
-                push!(edge_index,simplices[i,setdiff(1:4,j)]...)
+                push!(edge_index,simplices[i,setdiff(1:dim,j)]...)
             end
     end
     unique!(edge_index)
