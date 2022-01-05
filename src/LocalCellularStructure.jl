@@ -38,5 +38,5 @@ export
         # Distribution tools
         tvec_dist,moments_find,find_dist_props,TWpdf,
         # Misc.
-        subsample_dist, motif_size_find
+        subsample_dist, motif_size_find, Delaunay_find
 end
