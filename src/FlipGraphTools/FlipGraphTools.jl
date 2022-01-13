@@ -30,6 +30,6 @@ function compute_flip(str_arr, path_out; restrict = 0, edge_keep = false, dimens
 end
 
 
-export compute_flip
+export compute_flip,compute_flip_graph
 
 end
