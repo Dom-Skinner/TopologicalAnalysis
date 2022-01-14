@@ -8,10 +8,74 @@ using StatsBase: var,mean,countmap
 include("../PointCloudTools/PointCloudTools.jl")
 using .PointCloudTools
 
-
-function topological_cluster(Positions;k=2,r=3)
-    p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, 0.1)
+function topological_cluster(Positions::Array;k=2,r=3,α=0)
+    p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, α)
     g_full = graph_construct(simplices,size(p,1))
+
+    if is_connected(g_full)
+        return topological_cluster(g_full,k=k,r=r)
+    end
+
+    # If we reach here, the graph is not connected.
+    g_con_idx = connected_components(g_full)
+    g_con_idx = g_con_idx[argmax(length.(g_con_idx))] # work with largest connected component
+
+    g_part,vmap = induced_subgraph(g_full,g_con_idx)
+    labels_part = topological_cluster(g_part,k=k,r=r)
+    labels_full = zeros(Int64,nv(g_full))
+    labels_full[vmap] .= labels_part
+
+
+    # Now take a graph that is connected, and assign the remaining points to their
+    # most common neighboring labels
+    g_full = minimally_connected_graph(Positions,α)
+
+    for j = 1:length(labels_full)
+        if labels_full[j] > 0
+            continue
+        end
+
+        for r_val = 2:10
+            N = unique(neighborhood(g_full,j,r_val))
+            local_labs = filter(x->x>0,labels_full[N])
+            if length(local_labs) > 0
+                N = countmap(local_labs)
+                v = collect(values(N))
+                idx = collect(keys(N))
+                labels_full[j] = idx[argmax(v)]
+                break
+            end
+        end
+
+
+    end
+
+    return labels_full
+end
+
+
+function minimally_connected_graph(Positions,α;iter_max_val=10)
+    # If the alpha complex not connected, try again with a larger alpha
+    # Ideally don't have to use α=Inf since this may contain many spurious connections
+
+    # try up to (2^iter_max_val)*α before going to Inf
+    for iter = 1:iter_max_val
+
+        α = 2*α
+        p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, α)
+        g_full = graph_construct(simplices,size(p,1))
+
+        if is_connected(g_full)
+            return g_full
+        end
+    end
+
+    p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, Inf)
+    return graph_construct(simplices,size(p,1))
+
+end
+
+function topological_cluster(g_full::Graph;k=2,r=3)
 
     renorm = x-> (x .- mean(x)) ./ norm(x .- mean(x))
 
@@ -22,7 +86,7 @@ function topological_cluster(Positions;k=2,r=3)
     r2 = renorm([mean(n[nb]) for nb in nbh])
 
     # compute diffusion statistics
-    λ,evecs = eigs(laplacian_matrix(g_full), which=:SR)
+    λ,evecs = eigs(laplacian_matrix(g_full),nev=minimum([6;k]), which=:SR,maxiter=750)
 
     # combine and take kmeans
     vec_tot = hcat([r1,r2,evecs[:,2:end]]...)
