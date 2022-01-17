@@ -181,7 +181,7 @@ function periodic_extend!(Coords;tol=0.6)
     end
 end
 
-
+#=
 function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
 
     # If the system is periodic, add copies of points so that the Delaunay can
@@ -192,9 +192,10 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
     if periodic; periodic_extend!(Positions,tol=tol); end
 
     # Find the Delaunay and construct the full graph
-    p, simplices, neighbrs, α_val, α = Delaunay_find(Positions, α)
+    p, simplices, neighbrs, edge_index, α_val, α  = Delaunay_find(Positions, α)
     edge_index = α_val .< α
 
+    #=
     g_full = graph_construct(simplices,length(Positions))
 
     savegraph(path_out*"_graph.lgz",g_full)
@@ -212,11 +213,16 @@ function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
         write(io,"Tolerance, ", string(tol), "\n")
         write(io,"Original vertex number, ", string(N), "\n")
     end
+    =#
 
+    dim = 2
+    not_edge = setdiff(1:size(p,1), edge_index)
+    return TopologicalNetwork(simplices, not_edge, dim, periodic, α,
+               edge_keep, tol, N)
 end
+=#
 
-
-function find_delaunay_network_3D(Positions, path_out, periodic, α, tol, edge_keep)
+function find_delaunay_network_core(Positions, periodic, α, tol, edge_keep)
 
     N = length(Positions)
     if periodic; periodic_extend!(Positions,tol=tol); end
@@ -229,7 +235,7 @@ function find_delaunay_network_3D(Positions, path_out, periodic, α, tol, edge_k
         not_edge = setdiff(1:size(p,1), edge_index)
     end
 
-
+    #=
     # Write the data to file
     open(path_out*"_simplices.txt", "w") do io
            writedlm(io, simplices)
@@ -249,5 +255,11 @@ function find_delaunay_network_3D(Positions, path_out, periodic, α, tol, edge_k
         write(io,"Tolerance, ", string(tol), "\n")
         write(io,"Original vertex number, ", string(N), "\n")
     end
+    =#
+    dim = size(p,2)
+    return TopologicalNetwork(simplices, not_edge, dim, periodic, α,
+               edge_keep, tol, N)
+
+
 
 end
