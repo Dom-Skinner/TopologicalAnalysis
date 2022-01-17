@@ -353,14 +353,14 @@ end
 
 
 
-function simplicial_3D(path_to_dir_in,params_in)
+function simplicial_3D(delaunay_in)
 
-    simplices = readdlm(path_to_dir_in*"_simplices.txt", '\t', Int, '\n')
-    not_edge = readdlm(path_to_dir_in*"_indices_keep.txt", '\t', Int, '\n')
-    periodic = (params_in["Periodic"] == "True")
+    simplices = delaunay_in.simplices
+    not_edge = delaunay_in.not_edge
+    periodic = delaunay_in.periodic
 
     if periodic
-        N = Int(params_in["Original vertex number"])
+        N = delaunay_in.original_vertex_number
         not_edge = not_edge[not_edge .<= N] # don't compute motif for periodic copies
     end
 

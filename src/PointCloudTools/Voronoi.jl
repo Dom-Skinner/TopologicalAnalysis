@@ -122,25 +122,26 @@ function Delaunay_find(Positions,α)
         println("using custom alpha = ",α)
     end
 
+    if size(p,2) == 3
     # Figure out which simplices we want to keep, and also keep track of their
     # new indices in order to update the neighbour vector
-    α_keep = zeros(Int64,length(α_val))
-    counter = 1
-    for i = 1:length(α_keep)
-        if α_val[i] < α
-            α_keep[i] = counter
-            counter = counter + 1
-        else
-            α_keep[i] = 0
+        α_keep = zeros(Int64,length(α_val))
+        counter = 1
+        for i = 1:length(α_keep)
+            if α_val[i] < α
+                α_keep[i] = counter
+                counter = counter + 1
+            else
+                α_keep[i] = 0
+            end
         end
+        # Relabel points in neighbours (some simplices are now edge points)
+        f = x->neighbor_relabel(x,α_keep)
+        neighbours = f.(neighbours)
+        # Only keep the small simplices
+        simplices = simplices[α_keep.>0,:]
+        neighbours = neighbours[α_keep.>0,:]
     end
-    # Relabel points in neighbours (some simplices are now edge points)
-    f = x->neighbor_relabel(x,α_keep)
-    neighbours = f.(neighbours)
-    # Only keep the small simplices
-    simplices = simplices[α_keep.>0,:]
-    neighbours = neighbours[α_keep.>0,:]
-
     # This function keeps track of which points are on the boundary
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
@@ -181,47 +182,6 @@ function periodic_extend!(Coords;tol=0.6)
     end
 end
 
-#=
-function find_delaunay_network_2D(Positions, path_out, periodic, α, tol)
-
-    # If the system is periodic, add copies of points so that the Delaunay can
-    # include the full statistics. N.B. This is done in an incredibly inefficient
-    # way right now, since there were bugs in the old version of constructing the
-    # periodic graph.
-    N = length(Positions)
-    if periodic; periodic_extend!(Positions,tol=tol); end
-
-    # Find the Delaunay and construct the full graph
-    p, simplices, neighbrs, edge_index, α_val, α  = Delaunay_find(Positions, α)
-    edge_index = α_val .< α
-
-    #=
-    g_full = graph_construct(simplices,length(Positions))
-
-    savegraph(path_out*"_graph.lgz",g_full)
-
-    open(path_out*"_edge_nodes.txt", "w") do io
-           writedlm(io, edge_index)
-    end
-
-    open(path_out*".info", "w") do io
-        write(io,"Parameter, value\n")
-        write(io,"Graph type, Delaunay\n")
-        write(io,"Dimension, 2\n")
-        write(io,"Periodic, ", string(periodic), "\n")
-        write(io,"Alpha, ", string(α), "\n")
-        write(io,"Tolerance, ", string(tol), "\n")
-        write(io,"Original vertex number, ", string(N), "\n")
-    end
-    =#
-
-    dim = 2
-    not_edge = setdiff(1:size(p,1), edge_index)
-    return TopologicalNetwork(simplices, not_edge, dim, periodic, α,
-               edge_keep, tol, N)
-end
-=#
-
 function find_delaunay_network_core(Positions, periodic, α, tol, edge_keep)
 
     N = length(Positions)
@@ -235,31 +195,8 @@ function find_delaunay_network_core(Positions, periodic, α, tol, edge_keep)
         not_edge = setdiff(1:size(p,1), edge_index)
     end
 
-    #=
-    # Write the data to file
-    open(path_out*"_simplices.txt", "w") do io
-           writedlm(io, simplices)
-    end
-
-    open(path_out*"_indices_keep.txt", "w") do io
-           writedlm(io, not_edge)
-    end
-
-    open(path_out*".info", "w") do io
-        write(io,"Parameter, value\n")
-        write(io,"Graph type, Delaunay\n")
-        write(io,"Dimension, 3\n")
-        write(io,"Periodic, ", string(periodic), "\n")
-        write(io,"Edge keep, ", string(edge_keep), "\n")
-        write(io,"Alpha, ", string(α), "\n")
-        write(io,"Tolerance, ", string(tol), "\n")
-        write(io,"Original vertex number, ", string(N), "\n")
-    end
-    =#
     dim = size(p,2)
     return TopologicalNetwork(simplices, not_edge, dim, periodic, α,
                edge_keep, tol, N)
-
-
 
 end

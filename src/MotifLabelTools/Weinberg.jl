@@ -147,7 +147,9 @@ function weinberg2D_core(g,N,r=2)
         x,y,fixed_vecs = tutte_embedding(g_ego)
         order_local = order_mat_find(g_ego,x,y)
 
+
         weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
+
 
     end
     return code_tot,S_tot
@@ -167,14 +169,18 @@ function motif_size_find(Pos,r=2;periodic=true)
 end
 
 
-function weinberg2D(path_to_dir_in,params_in,r)
+function weinberg2D(delaunay_in,r)
 
-    g = loadgraph(path_to_dir_in*"_graph.lgz")
-    edge_index = readdlm(path_to_dir_in*"_edge_nodes.txt", '\t', Int, '\n')
-    periodic = (params_in["Periodic"] == "True")
+    simplices = delaunay_in.simplices
+    println(simplices[1:50,:])
+    g = graph_construct(simplices,maximum(simplices))
+    not_edge = delaunay_in.not_edge
+    edge_index = setdiff(1:nv(g), not_edge)
+
+    periodic = delaunay_in.periodic
 
     if periodic
-        N = Int(params_in["Original vertex number"])
+        N = delaunay_in.original_vertex_number
     else
         N = nv(g)
     end

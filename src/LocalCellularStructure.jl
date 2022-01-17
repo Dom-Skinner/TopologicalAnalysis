@@ -40,9 +40,10 @@ export
 
         # clustering
         topological_cluster,
-        
+
         # Distribution tools
         tvec_dist,moments_find,find_dist_props,TWpdf,
         # Misc.
-        subsample_dist, motif_size_find, Delaunay_find, graph_construct
+        subsample_dist, motif_size_find, Delaunay_find, graph_construct,
+        find_delaunay_network_core,save,load_topological_network
 end
