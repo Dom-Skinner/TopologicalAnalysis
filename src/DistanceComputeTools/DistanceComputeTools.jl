@@ -5,9 +5,12 @@ using IterativeSolvers
 using SparseArrays
 using LinearAlgebra
 
-include("../ReadWriteTools.jl")
+include("../FlipGraphTools/FlipGraphTools.jl")
+using .FlipGraphTools
 
+include("../ReadWriteTools.jl")
 include("Wasserstein.jl")
+
 
 
 function calculate_distance_matrix(network_save_file, decode_save_file,file_out,

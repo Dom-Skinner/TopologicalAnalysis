@@ -20,6 +20,7 @@ end
 
 function save(save_str,top::TopologicalNetwork)
     h5open(save_str, "w") do file
+        write(file, "Type", "TopologicalNetwork")
         write(file, "simplices", top.simplices)
         write(file, "not_edge", top.not_edge)
         write(file, "dim", top.dim)

@@ -514,7 +514,7 @@ function find_flip_graph3D(tvec_tot,edge_keep,thresh)
     return g_new
 end
 
-function compute_flip_graph3D(code_amalg,save_str,edge_keep,thresh)
+function compute_flip_graph3D(code_amalg,edge_keep,thresh)
     tvec_tot = []
     for i = 1:size(code_amalg,1)
         w = code_amalg[i][1]
@@ -522,10 +522,11 @@ function compute_flip_graph3D(code_amalg,save_str,edge_keep,thresh)
         push!(tvec_tot,Int.(w_num.args))
     end
     g = find_flip_graph3D(tvec_tot,edge_keep,thresh)
-    savegraph( save_str*".lgz", g)
-    df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
-        index = [k for k in 1:size(code_amalg,1)])
-    CSV.write(save_str*".txt",  df)
+    return FlipGraph(g,Dict([code_amalg[k][1] for k in 1:size(code_amalg,1)] .=> [k for k in 1:size(code_amalg,1)]))
+    #savegraph( save_str*".lgz", g)
+    #df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
+    #    index = [k for k in 1:size(code_amalg,1)])
+    #CSV.write(save_str*".txt",  df)
 end
 
 function threshold_graph(str,thr)

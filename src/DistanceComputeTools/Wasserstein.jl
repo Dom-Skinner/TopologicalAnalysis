@@ -23,16 +23,13 @@ function ret_weights(dict_w,N,W_code_to_idx,vmap)
     return weight_arr./sum(weight_arr)
 end
 
+
 function load_w_graph(path_in)
-    return load_w_graph(path_in*".lgz",path_in*".txt")
-end
-function load_w_graph(network_save_file,network_decode_file)
     # Wrapper to load the flip graph, and to reduce to the largest connected comp
-    g = lg.loadgraph(network_save_file)
-    #gplot(g)
-    dat_in = CSV.read(network_decode_file,DataFrame)
-    W_code_to_idx = Dict(dat_in.codes .=> dat_in.index)
-    W_idx_to_code = Dict(dat_in.index .=> dat_in.codes)
+    fg = load_flip_graph(path_in)
+    g = fg.g
+    W_code_to_idx = fg.motif_code
+    W_idx_to_code = Dict(collect(values(W_code_to_idx)) .=> collect(keys(W_code_to_idx)))
 
     ccomp = lg.connected_components(g)
     idx = argmax([length(c) for c in ccomp])
