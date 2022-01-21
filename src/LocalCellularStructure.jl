@@ -4,28 +4,27 @@ using Distributed
 
 
 include("./DistributionTools/DistributionTools.jl")
-include("ReadWriteTools.jl")
+
 include("./DistanceComputeTools/DistanceTools.jl")
 
-include("./PointCloudTools/PointCloudTools.jl")
-using .PointCloudTools
+include("GraphConstruct.jl")
+include("Voronoi.jl")
+include("ClusterTools.jl")
+include("MotifLabelTools.jl")
+include("ReadWriteTools.jl")
 
-include("./ClusterTools/ClusterTools.jl")
-using .ClusterTools
 
-include("./MotifLabelTools/MotifLabelTools.jl")
-using .MotifLabelTools
+#include("./FlipGraphTools/FlipGraphTools.jl")
+#using .FlipGraphTools
 
-include("./FlipGraphTools/FlipGraphTools.jl")
-using .FlipGraphTools
-
-include("./DistanceComputeTools/DistanceComputeTools.jl")
-using .DistanceComputeTools
+#include("./DistanceComputeTools/DistanceComputeTools.jl")
+#using .DistanceComputeTools
 
 
 
 export
         # For reading/writing
+        save, load, avg_motif,
         readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,combine_distributions,
 
         # For computing topological types
@@ -45,5 +44,5 @@ export
         tvec_dist,moments_find,find_dist_props,TWpdf,
         # Misc.
         subsample_dist, motif_size_find, Delaunay_find, graph_construct,
-        find_delaunay_network_core,save,load_topological_network
+        find_delaunay_network_core
 end

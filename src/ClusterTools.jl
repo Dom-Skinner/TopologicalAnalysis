@@ -1,12 +1,10 @@
-module ClusterTools
 using LightGraphs
 using LinearAlgebra
 using Arpack
 using Clustering: kmeans
 using StatsBase: var,mean,countmap
 
-include("../PointCloudTools/PointCloudTools.jl")
-using .PointCloudTools
+
 
 function topological_cluster(Positions::Array;k=2,r=3,α=0)
     p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, α)
@@ -95,30 +93,6 @@ function topological_cluster(g_full::Graph;k=2,r=3)
 
     return labels
 end
-#=
-function edge_reassign!(labels,g_full;iter=10)
-    r = 2
-    code_tot,_ = weinberg2D_core(g_full,nv(g_full),r)
-
-    for count = 1:iter
-        cluster_top = [countmap(code_tot[labels .== i]) for i = 1:k]
-
-        boundary_assign = [labels[neighborhood(g_full,i,1)] for i = 1:nv(g_full)]
-        nbh_counts =  countmap.(boundary_assign)
-        boundary_assign = [nbh_counts[i][labels[i]]/ sum(collect(values(nbh_counts[i]))) for i = 1:length(nbh_counts)]
-
-
-        for i = 1:length(labels)
-            if boundary_assign[i]  < 0.5
-                n = [haskey(clust,code_tot[i]) ? clust[code_tot[i]] : 0 for clust in cluster_top]
-                nmax = maximum(n)
-                nmax = findall(n .== nmax)
-                labels[i] = nmax[argmax([nbh_counts[i][j] for j in nmax])]
-            end
-        end
-    end
-end
-=#
 
 function make_connected!(labels,g_full)
     # takes the clustering done by topological_cluster, and reassigns points that
@@ -143,7 +117,4 @@ function make_connected!(labels,g_full)
             end
         end
     end
-end
-
-export  topological_cluster
 end

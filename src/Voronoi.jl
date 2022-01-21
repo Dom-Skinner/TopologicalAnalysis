@@ -5,9 +5,49 @@
 using PyCall
 using LinearAlgebra: norm, det
 using Statistics: median
-#scipy = pyimport("scipy.spatial.qhull")
+using CSV, DataFrames
 const scipy_qhull = PyNULL()
-using DelimitedFiles
+
+
+#############################################################################
+struct TopologicalNetwork
+           simplices::Array
+           not_edge::Array
+           dim::Int
+           periodic::Bool
+           alpha::Number
+           edge_keep::Bool
+           tolerance::Number
+           original_vertex_number::Int
+           clusters::Union{Array, Missing}
+end
+
+function TopologicalNetwork(simplices::Array, not_edge::Array, dim::Int,
+        periodic::Bool, alpha::Number, edge_keep::Bool, tolerance::Number,
+        original_vertex_number::Int)
+    return TopologicalNetwork(simplices, not_edge, dim, periodic, alpha,
+        edge_keep,tolerance,original_vertex_number,missing)
+end
+
+
+function find_delaunay_network(path_to_csv_in::String; periodic=false, alpha = 0,
+                                tol=0.6, edge_keep=false)
+
+    dat_in = Matrix(CSV.read(path_to_csv_in,DataFrame))
+    Positions = unique([dat_in[k,:] for k in 1:size(dat_in,1)])
+
+    if length(Positions) != size(dat_in,1)
+        println("Warning: Input file contains duplicate points.\n Recommended to rerun with duplicates removed")
+    end
+
+    return find_delaunay_network_core(Positions, periodic, alpha, tol, edge_keep)
+
+end
+function find_delaunay_network(Positions::Array; periodic=false, alpha = 0,
+                                tol=0.6, edge_keep=false)
+    return find_delaunay_network_core(Positions, periodic, alpha, tol, edge_keep)
+end
+#############################################################################
 
 function __init__()
     copy!(scipy_qhull, pyimport_conda("scipy.spatial.qhull", "scipy"))

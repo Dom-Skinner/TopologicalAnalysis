@@ -19,42 +19,6 @@ struct FlipGraph
            motif_code::Dict
 end
 
-function save(save_str,fg::FlipGraph)
-    E = collect(edges(fg.g))
-    h5open(save_str, "w") do file
-        write(file, "Type", "FlipGraph")
-        write(file, "I", [e.src for e in E])
-        write(file, "J", [e.dst for e in E])
-        write(file, "codes", collect(keys(fg.motif_code)))
-        write(file, "values", collect(values(fg.motif_code)))
-    end
-end
-
-function load_flip_graph(save_str)
-
-    I = h5read(save_str,"I")
-    J = h5read(save_str,"J")
-    # TODO: what is the vectorized way to do this? Not so important as this
-    # is fast for unweighted graphs
-    g = SimpleGraph(maximum(J))
-    for i = 1:length(J)
-        add_edge!(g,I[i],J[i])
-    end
-
-    codes = h5read(save_str,"codes")
-    values = h5read(save_str,"values")
-    code_to_idx = Dict(codes .=> values)
-    return FlipGraph(g,code_to_idx)
-end
-
-
-function compute_flip(data_dir_in::String, path_out; restrict = 0,
-                        edge_keep = false, dimension = 2, thresh = 1.5)
-
-    str_arr = filter(x->occursin("avg.txt",x), readdir(data_dir_in))
-    compute_flip(data_dir_in.*str_arr, path_out; restrict = restrict,
-                    edge_keep = edge_keep, dimension = dimension, thresh = thresh)
-end
 
 function compute_flip(str_arr, path_out; restrict = 0, edge_keep = false,
                         dimension = 2,thresh=1.5)
