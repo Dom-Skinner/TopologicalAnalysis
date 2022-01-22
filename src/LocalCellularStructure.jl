@@ -5,18 +5,15 @@ using Distributed
 
 #include("./DistributionTools/DistributionTools.jl")
 
-include("./DistanceComputeTools/DistanceTools.jl")
+#include("./DistanceComputeTools/DistanceTools.jl")
 
 include("GraphConstruct.jl")
 include("Voronoi.jl")
 include("ClusterTools.jl")
 include("MotifLabelTools.jl")
 include("FlipGraphTools.jl")
+include("DistanceComputeTools.jl")
 include("ReadWriteTools.jl")
-
-#include("./DistanceComputeTools/DistanceComputeTools.jl")
-#using .DistanceComputeTools
-
 
 
 export

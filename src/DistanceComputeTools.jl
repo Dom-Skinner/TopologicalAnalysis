@@ -1,41 +1,80 @@
-using CSV,DataFrames
+using Distributed
+using IterativeSolvers
+using LinearAlgebra
 using LightGraphsFlows
 import LightGraphs
 const lg = LightGraphs
 import StatsBase
 using SparseArrays
-#using Convex, Mosek, MosekTools
 using Base.Threads
-import Clp  # use your favorite LP solver here
-#using MathProgBase,Gurobi
+import Clp
 
 
-function ret_weights(dict_w,N,W_code_to_idx,vmap)
+function calculate_distance_matrix(fg::FlipGraph,file_out,
+		motif_array; optimal_transport= true)
+    # This function is a wrapper for all other functions in this file
+    # from a flip graph and n motifs in  it returns the
+    # n by n distance matrix
+
+	fg = connected_flip_graph(fg)
+
+    weight = [ret_weights(fg,m) for m in motif_array]
+
+    d =  distance_mat(fg,weight,optimal_transport)
+	CSV.write(file_out,DataFrame(d,str_arr))
+
+end
+
+
+function triangle_index(k)
+	# Helps us to iterate through upper triangular part of matrix
+	T = n ->Int(0.5*n*(n+1))
+	kk = Int(ceil( sqrt(2*k + 0.25) - 0.5))
+	return k - T(kk-1),kk + 1
+end
+
+
+function distance_mat(fg,weight,optimal_transport)
+	n_needed = Int(ceil(0.5*length(weight)*(length(weight)-1)))
+    d = zeros(length(weight),length(weight))
+	W = [weight[triangle_index(i)[1]] .- weight[triangle_index(i)[2]]  for i = 1:n_needed]
+	g = fg.g
+	rem_self_edges!(g)
+
+
+	if optimal_transport
+		f = x -> W_dist(g,x)
+	else
+		L = float.(laplacian_matrix(g))
+		D = float.(incidence_matrix(g,oriented=true))
+		f = x -> sum(abs.(D' * minres(L , x)))
+	end
+
+	d_flat = pmap(f,W)
+	for i  = 1:n_needed
+		d[triangle_index(i)[1],triangle_index(i)[2]] = d_flat[i]
+		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
+	end
+	return d
+end
+
+function ret_weights(fg::FlipGraph,motif::MotifArray)
     # Find the distribution of networks in the connected comp of the flip graph
-    weight_arr = zeros(Float64,N)
-    key_arr = collect(keys(dict_w))
+	weight = avg_motif(motif)
+
+    weight_arr = zeros(Float64,nv(fg.g))
+    key_arr = collect(keys(weight))
     for k in key_arr
-        if haskey(W_code_to_idx,k)
-            weight_arr[W_code_to_idx[k]] = dict_w[k]
+        if haskey(fg.motif_code,k)
+            weight_arr[fg.motif_code[k]] = weight[k]
         end
     end
-    weight_arr = weight_arr[vmap]
+
     return weight_arr./sum(weight_arr)
 end
 
 
-function load_w_graph(path_in)
-    # Wrapper to load the flip graph, and to reduce to the largest connected comp
-    fg = load_flip_graph(path_in)
-    g = fg.g
-    W_code_to_idx = fg.motif_code
-    W_idx_to_code = Dict(collect(values(W_code_to_idx)) .=> collect(keys(W_code_to_idx)))
 
-    ccomp = lg.connected_components(g)
-    idx = argmax([length(c) for c in ccomp])
-    g_con, vmap = lg.induced_subgraph(g, ccomp[idx])
-    return g_con,vmap,lg.nv(g),W_code_to_idx,W_idx_to_code
-end
 
 function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
 
@@ -111,9 +150,10 @@ end
 
 function geodesic(w1,w2,α,network_save_file,N)
     w_vec_in = [w1;w2]
-    g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
-    weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
-    flow = W_dist(g,weight[1] .- weight[2],true)
+    fg = load(network_save_file)
+	fg = connected_flip_graph(fg)
+    weight = [ret_weights(fg, m) for m in w_vec_in]
+    flow = W_dist(fg.g,weight[1] .- weight[2],true)
     w_geo = [geo_core(weight[1],flow,α0,N) for α0 in α]
     return w_geo
 end
@@ -155,9 +195,9 @@ function find_reg_geo(p0,p1,g,k)
 end
 
 function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
-        g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file)
+        fg = load(network_save_file)
         w_vec_in = [w1;w2]
-        weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
+        weight = [ret_weights(fg,w_vec_in[i]) for i in 1:length(w_vec_in)]
         q,val = find_reg_geo(α*weight[1]+(1.0-α)*weight[2],β*weight[1]
                                 +(1.0-β)*weight[2],g,k)
         return q,val
