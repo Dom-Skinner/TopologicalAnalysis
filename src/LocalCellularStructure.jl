@@ -3,7 +3,7 @@ module LocalCellularStructure
 using Distributed
 
 
-include("./DistributionTools/DistributionTools.jl")
+#include("./DistributionTools/DistributionTools.jl")
 
 include("./DistanceComputeTools/DistanceTools.jl")
 
@@ -11,11 +11,8 @@ include("GraphConstruct.jl")
 include("Voronoi.jl")
 include("ClusterTools.jl")
 include("MotifLabelTools.jl")
+include("FlipGraphTools.jl")
 include("ReadWriteTools.jl")
-
-
-#include("./FlipGraphTools/FlipGraphTools.jl")
-#using .FlipGraphTools
 
 #include("./DistanceComputeTools/DistanceComputeTools.jl")
 #using .DistanceComputeTools
@@ -31,7 +28,7 @@ export
         weinberg_find!, label_3D,find_delaunay_network,load_w_graph, weinberg2D_core,
 
         # For computing flip graph
-        compute_flip_graph, compute_flip, compute_motifs,
+        compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
 
         # For calculating distances
         calculate_distance_matrix, geodesic_reg,

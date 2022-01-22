@@ -21,19 +21,11 @@ function save(save_str,top::TopologicalNetwork)
     end
 end
 
-
 function save(save_str,motif::MotifArray)
     h5open(save_str, "w") do file
         write(file, "Type", "MotifArray")
         write(file, "idx", motif.idx)
-
-        max_len = maximum(length.(motif.tvec))
-        full_arr = zeros(Int64,length(motif.tvec),max_len)
-        for i = 1:length(motif.tvec)
-            full_arr[i,1:length(motif.tvec[i])] .= motif.tvec[i]
-        end
-
-        write(file, "tvec", full_arr)
+        write(file, "tvec", motif_to_matrix(motif.tvec))
         write(file, "dim", motif.dim)
         write(file, "r", motif.r)
     end
@@ -45,11 +37,19 @@ function save(save_str,fg::FlipGraph)
         write(file, "Type", "FlipGraph")
         write(file, "I", [e.src for e in E])
         write(file, "J", [e.dst for e in E])
-        write(file, "codes", collect(keys(fg.motif_code)))
+        write(file, "codes", motif_to_matrix(collect(keys(fg.motif_code))))
         write(file, "values", collect(values(fg.motif_code)))
     end
 end
 
+function motif_to_matrix(tvec)
+    tvec_len = length.(tvec)
+    full_arr = zeros(Int64,length(tvec),maximum(tvec_len))
+    for i = 1:length(tvec)
+        full_arr[i,1:tvec_len[i]] .= tvec[i]
+    end
+    return full_arr
+end
 
 function load(save_str)
     input_type = h5read(save_str,"Type")
@@ -80,6 +80,21 @@ function load_topological_network(save_str)
         edge_keep, tolerance, original_vertex_number,clusters)
 end
 
+function matrix_to_motif(full_arr)
+    tvec = [full_arr[i,:] for i in 1:size(full_arr,1)]
+    return [r[r.>0] for r in tvec]
+end
+
+function load_motif_array(save_str)
+
+    idx = h5read(save_str,"idx")
+    tvec = matrix_to_motif(h5read(save_str,"tvec"))
+    dim = h5read(save_str,"dim")
+    r = h5read(save_str,"r")
+
+    return MotifArray(idx, tvec, dim, r)
+end
+
 function load_flip_graph(save_str)
 
     I = h5read(save_str,"I")
@@ -91,7 +106,7 @@ function load_flip_graph(save_str)
         add_edge!(g,I[i],J[i])
     end
 
-    codes = h5read(save_str,"codes")
+    codes = matrix_to_motif(h5read(save_str,"codes"))
     values = h5read(save_str,"values")
     code_to_idx = Dict(codes .=> values)
     return FlipGraph(g,code_to_idx)
@@ -99,17 +114,10 @@ end
 
 
 
-function load_motif_array(save_str)
 
-    idx = h5read(save_str,"idx")
-    full_arr = h5read(save_str,"tvec")
-    tvec = [full_arr[i,:] for i in 1:size(full_arr,1)]
-    tvec = [r[r.>0] for r in tvec]
-    dim = h5read(save_str,"dim")
-    r = h5read(save_str,"r")
 
-    return MotifArray(idx, tvec, dim, r)
-end
+
+#=
 
 function weight_in(Data_dir,str_arr,m=-1)
     # a wrapper to readin that takes a string array
@@ -239,3 +247,4 @@ function get_files_dir(Data_dir; c = 10)
       str_arr = [String(SubString(d,1:(length(d)-c))) for d in str_arr].*"_"
       return  str_arr
 end
+=#

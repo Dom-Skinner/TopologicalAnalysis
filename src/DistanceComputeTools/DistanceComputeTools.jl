@@ -1,24 +1,18 @@
-module DistanceComputeTools
 using Distributed
 using LightGraphs
 using IterativeSolvers
 using SparseArrays
 using LinearAlgebra
 
-include("../FlipGraphTools/FlipGraphTools.jl")
-using .FlipGraphTools
-
-include("../ReadWriteTools.jl")
-include("Wasserstein.jl")
 
 
-
-function calculate_distance_matrix(network_save_file, decode_save_file,file_out,
-		str_arr; optimal_transport= true)
+function calculate_distance_matrix(fg::FlipGraph,file_out,
+		motif_array; optimal_transport= true)
     # This function is a wrapper for all other functions in this file
     # from n dictionaries in and the path to the load_graph file it returns the
     # n by n distance matrix
-	w_vec_in = readin.(str_arr)
+
+	##TODO!!!!!!! Fix
 	g,vmap,N,W_code_to_idx,W_idx_to_code = load_w_graph(network_save_file, decode_save_file)
     weight = [ret_weights(w_vec_in[i],N,W_code_to_idx,vmap) for i in 1:length(w_vec_in)]
 
@@ -69,7 +63,4 @@ function distance_mat(g,weight,optimal_transport)
 		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
 	end
 	return d
-end
-
-export  calculate_distance_matrix, geodesic_reg,load_w_graph
 end

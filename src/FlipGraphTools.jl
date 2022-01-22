@@ -3,6 +3,191 @@ using DataFrames, CSV
 using Base.Threads
 using StatsBase:mean
 using Distributed
+
+
+struct FlipGraph
+           g::Graph
+           motif_code::Dict
+end
+
+
+function compute_flip(motifs...; restrict = 0, edge_keep = false,thresh=1.5)
+
+    dim = motifs[1].dim
+    weight = avg_motif(motifs...)
+    weight = filter(x->last(x)>restrict,weight)
+    if dim == 2
+        fg = compute_flip_graph(weight)
+    else
+        fg = compute_flip_graph3D(weight,edge_keep)
+    end
+    return threshold_graph(fg,thresh)
+end
+
+function threshold_graph(fg::FlipGraph,thr)
+
+    nv_keep = length(collect(values(fg.motif_code)))
+    rank = pagerank(fg.g)
+    to_keep = rank .> thr*mean(rank)
+    to_keep[1:nv_keep] .= true
+    g_new, d = induced_subgraph(fg.g,[i for i in 1:nv(fg.g)][to_keep])
+
+    return FlipGraph(g_new, fg.motif_code)
+end
+
+function connected_flip_graph(fg::FlipGraph)
+
+    motifs = collect(keys(fg.motif_code))
+    motif_idx = collect(values(fg.motif_code))
+
+    ccomp = connected_components(fg.g)
+    idx = argmax([length(c) for c in ccomp])
+    g_con, vmap = induced_subgraph(fg.g, ccomp[idx])
+    motif_map = []
+    motif_map_idx = []
+    for i in 1:length(vmap)
+        q = findfirst(isequal(vmap[i]),motif_idx)
+        if !isnothing(q)
+            push!(motif_map,motifs[q])
+            push!(motif_map_idx,i)
+        end
+    end
+
+    return FlipGraph(g_con,Dict(motif_map .=> motif_map_idx))
+end
+#############################################################################
+### 2D Flip calculation
+#############################################################################
+
+function circ_insert!(M,pair_set,val)
+    idx1 = findfirst(x-> x ∈ pair_set , M)
+    idx2 = findlast(x-> x ∈ pair_set , M)
+
+    if idx2 - idx1 == 1
+        insert!(M,idx2,val)
+    else
+        push!(M,val)
+    end
+end
+
+function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2,r)
+
+    # First we perform the flipping procedure on vertices d,s,v1,v2, updating
+    # the graph and the order matrices
+    g2 = deepcopy(g)
+    rem_edge!(g2,d,s)
+    add_edge!(g2,v1,v2)
+    order_copy = deepcopy(order_mat)
+    order_copy[d] = order_mat[d][order_mat[d] .!= s]
+    order_copy[s] = order_mat[s][order_mat[s] .!= d]
+    circ_insert!(order_copy[v1],[d;s],v2)
+    circ_insert!(order_copy[v2],[d;s],v1)
+
+    # Now we use the induced induced_subgraph to compute the weinberg
+    code_tot = Vector{Array{Int64}}(undef,1)
+    S_tot = Array{Int64}(undef,1)
+    g_ego, vmap = induced_subgraph(g2,neighborhood(g2,cent_node,r))
+    vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
+    order_local = order_copy[vmap]
+    for i = 1:length(vmap)
+        total_order = map.(x -> get(vmap_inv, x, -1), order_copy[vmap[i]])
+        order_local[i] = total_order[total_order .> 0]
+    end
+    if (minimum([length(neighbors(g_ego,k)) for k = 1:nv(g_ego)]) < 3) || (has_edge(g,v1,v2))
+        # don't flip!!
+        return [-1]
+    end
+    weinberg_find!(code_tot,S_tot,1,g_ego,order_local,vmap_inv[cent_node])
+    if S_tot[1] == -1
+        # This is bad
+        savegraph( "debug2.lgz", g)
+        error("..")
+    end
+    return code_tot[1]
+end
+
+function return_nbh_vertex(order_arr,v)
+    next_ind = (i,m) -> (i+1)*(i<m) +(i == m)
+    prev_ind = (i,m) -> (i-1)*(i>1) +m*(i == 1)
+
+    d1 = findfirst(x->x==v, order_arr)
+    v1 = order_arr[ next_ind(d1,length(order_arr))]
+    v2 = order_arr[ prev_ind(d1,length(order_arr))]
+    return v1,v2
+end
+
+
+function flip_core_parallel(w_in,r)
+    # This function takes a weinberg vector and creates finds all other weinberg
+    # vectors that are 1 flip away while also increasing the disntance from central node
+    w_neighbors = []
+    g = SimpleGraph(maximum(w_in))
+    for i = 1:(length(w_in)-1)
+        add_edge!(g,w_in[i],w_in[i+1])
+    end
+
+    # need to do the embedding to find the order mat
+    x,y,fixed_vecs = tutte_embedding(g)
+    order_mat = order_mat_find(g,x,y)
+
+    cent_node = 1
+    dist_to_cent = (dijkstra_shortest_paths(g,cent_node)).dists
+    for e in edges(g)
+        d = dst(e)
+        s = src(e)
+
+        v11,v21 = return_nbh_vertex(order_mat[s],d)
+        v22,v12 = return_nbh_vertex(order_mat[d],s)
+
+        # We have picked something that looks flippable. We test if it is and
+        # then call weinberg_flip to find the w-vector after the flip. NB!!
+        # weinberg_flip might decide to not flip and will return [-1]
+        if (v11 == v12) && (v21 == v22)
+            #println("A Flippable triangle")
+            if (dist_to_cent[d] == dist_to_cent[s]) &&
+                (abs(dist_to_cent[v11]-dist_to_cent[v21]) == 2)
+                #println("Don't flip!")
+            else
+                push!(w_neighbors, weinberg_flip(g,cent_node,order_mat,d,s,v11,v21,r))
+            end
+        end
+    end
+    return w_neighbors
+end
+
+
+function compute_flip_graph(code_amalg;r=2)
+    tvec_tot = collect(keys(code_amalg))
+    vector_to_idx = Dict(tvec_tot .=> 1:length(tvec_tot))
+
+    w_network = SimpleGraph(length(tvec_tot))
+
+    block_len = 1000 # to save memory
+    nloop = Int(round(length(tvec_tot)/block_len))
+
+
+    for i = 1:nloop
+        k_start = (i-1)*block_len + 1
+        k_end = minimum([i*block_len ;length(tvec_tot)])
+        w_vec_nb = pmap(x->flip_core_parallel(x,r),tvec_tot[k_start:k_end])
+        for k = k_start:k_end
+            for nb in w_vec_nb[k-k_start+1]
+                if haskey(vector_to_idx,nb)
+                    add_edge!(w_network,vector_to_idx[nb],k)
+                end
+            end
+        end
+        println("Done ", i*block_len, "out of ", length(tvec_tot))
+    end
+
+    return FlipGraph(w_network,vector_to_idx)
+end
+
+
+#############################################################################
+### 3D Flip calculation
+#############################################################################
+
 function three_match(A,k,l)
     # finds if rows k and l of A share a face
     count = 0
@@ -442,7 +627,7 @@ function flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start
 end
 
 
-function find_flip_graph3D(tvec_tot,edge_keep,thresh)
+function find_flip_graph3D(tvec_tot,edge_keep)
     g = SimpleGraph(length(tvec_tot))
     #tvec_tot = tvec_tot[1:10_000]
     #println("Debug mode")
@@ -476,71 +661,19 @@ function find_flip_graph3D(tvec_tot,edge_keep,thresh)
         println("Done ", i*block_len, "out of ", length(tvec_new))
     end
 
-    println("num edges = ",ne(g))
-    println("num vertices = ",nv(g))
-    # remove vertices that won't effect the diffusion calculation
-    for v = nv(g) : -1 : (length(tvec_tot) +1)
-        if length(neighbors(g,v)) < 2
-            rem_vertex!(g,v)
-        end
-    end
-
-    # To thin graph even further, remove vertices that are not central enough
-    rank = pagerank(g)
-    to_keep = rank .> thresh*mean(rank)
-    to_keep[1:length(tvec_tot)] .= true
-    g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
-
-    # Use this testing code to see what fraction of the motifs are accounted for
-    # in the largest connected component of the new flip graph.
-    #=
-        # Load the number of unique motifs and how often they occur
-
-    data_dir = homedir()*"/Documents/CellShapeProject/LabeledData/"
-    str_arr = filter(x->occursin("avg.txt",x), readdir(data_dir))
-    weight = amalg2_([readin_(data_dir*s,0) for s in str_arr])
-    weight = [w[2] for w in weight]
-    core_v = length(weight)
-
-    # Verify that most of the motifs are in the connected component of the new flip graph
-    g_comp = connected_components(g_new)
-    v_in_core = intersect([i for i = 1:core_v],g_comp[1])
-    println("pct in connected component = ", sum(weight[v_in_core])/sum(weight))
-
-      =#
-    println("purged num vertices = ",nv(g_new))
-    println("purged num edges = ",ne(g_new))
-
-    return g_new
+    return g
 end
 
-function compute_flip_graph3D(code_amalg,edge_keep,thresh)
-    tvec_tot = []
-    for i = 1:size(code_amalg,1)
-        w = code_amalg[i][1]
-        w_num = Meta.parse(w)
-        push!(tvec_tot,Int.(w_num.args))
-    end
-    g = find_flip_graph3D(tvec_tot,edge_keep,thresh)
-    return FlipGraph(g,Dict([code_amalg[k][1] for k in 1:size(code_amalg,1)] .=> [k for k in 1:size(code_amalg,1)]))
-    #savegraph( save_str*".lgz", g)
-    #df = DataFrame(codes = [code_amalg[k][1] for k in 1:size(code_amalg,1)],
-    #    index = [k for k in 1:size(code_amalg,1)])
-    #CSV.write(save_str*".txt",  df)
-end
-
-function threshold_graph(str,thr)
-    g = loadgraph(str*".lgz")
-    dat_in = CSV.read(str*".txt")
-    nv_keep = length(dat_in.codes)
-    rank = pagerank(g)
-    to_keep = rank .> thr*mean(rank)
-    to_keep[1:nv_keep] .= true
-    g_new, d = induced_subgraph(g,[i for i in 1:nv(g)][to_keep])
-    savegraph(str*"_th.lgz",g_new)
+function compute_flip_graph3D(code_amalg,edge_keep)
+    tvec_tot = collect(keys(code_amalg))
+    g = find_flip_graph3D(tvec_tot,edge_keep)
+    code_to_idx = Dict(tvec_tot .=> 1:length(tvec_tot))
+    return FlipGraph(g,code_to_idx)
 end
 
 
+
+#=
 function readin_(Data_dir_str,N)
     if N > 0
         W_arr = Array{Dict}(undef,0)
@@ -564,3 +697,4 @@ function amalg2_(w_tot)
     end
     return sort(collect(count_tot), by = tuple -> last(tuple), rev=true)
 end
+=#
