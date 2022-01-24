@@ -25,7 +25,7 @@ export
         weinberg_find!, label_3D,find_delaunay_network,load_w_graph, weinberg2D_core,
 
         # For computing flip graph
-        compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
+        FlipGraph,compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
 
         # For calculating distances
         calculate_distance_matrix, geodesic_reg,

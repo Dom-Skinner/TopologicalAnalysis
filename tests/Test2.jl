@@ -15,7 +15,7 @@ tg2 = load(save_dir*"tmp_tn.h5")
 ma = compute_motifs(tg2)
 save(save_dir*"tmp_ma.h5",ma)
 ma2 = load(save_dir*"tmp_ma.h5")
-
+m2 = avg_motif(ma,ma2)
 
 
 fg = compute_flip(ma2; restrict = 0, edge_keep = false,thresh=1.5)

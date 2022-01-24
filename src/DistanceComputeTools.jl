@@ -60,7 +60,7 @@ end
 
 function ret_weights(fg::FlipGraph,motif::MotifArray)
     # Find the distribution of networks in the connected comp of the flip graph
-	weight = avg_motif(motif)
+	weight = avg_motif(motif).map
 
     weight_arr = zeros(Float64,nv(fg.g))
     key_arr = collect(keys(weight))

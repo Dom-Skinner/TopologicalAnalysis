@@ -14,7 +14,7 @@ end
 function compute_flip(motifs...; restrict = 0, edge_keep = false,thresh=1.5)
 
     dim = motifs[1].dim
-    weight = avg_motif(motifs...)
+    weight = avg_motif(motifs...).map
     weight = filter(x->last(x)>restrict,weight)
     if dim == 2
         fg = compute_flip_graph(weight)
@@ -36,6 +36,7 @@ function threshold_graph(fg::FlipGraph,thr)
 end
 
 function connected_flip_graph(fg::FlipGraph)
+    # takes a flip graph and returns the largest connected component
 
     motifs = collect(keys(fg.motif_code))
     motif_idx = collect(values(fg.motif_code))

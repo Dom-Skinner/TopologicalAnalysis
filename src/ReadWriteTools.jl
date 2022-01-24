@@ -30,6 +30,13 @@ function save(save_str,motif::MotifArray)
         write(file, "r", motif.r)
     end
 end
+function save(save_str,motif::MotifDist)
+    h5open(save_str, "w") do file
+        write(file, "Type", "MotifDist")
+        write(file, "codes", motif_to_matrix(collect(keys(motif.map))))
+        write(file, "values", collect(values(motif.map)))
+    end
+end
 
 function save(save_str,fg::FlipGraph)
     E = collect(edges(fg.g))
@@ -57,6 +64,8 @@ function load(save_str)
         return load_topological_network(save_str)
     elseif input_type == "MotifArray"
         return load_motif_array(save_str)
+    elseif input_type == "MotifDist"
+        return load_motif_dist_array(save_str)
     elseif input_type == "FlipGraph"
         load_flip_graph(save_str)
     end
@@ -93,6 +102,15 @@ function load_motif_array(save_str)
     r = h5read(save_str,"r")
 
     return MotifArray(idx, tvec, dim, r)
+end
+
+
+function load_motif_dist_array(save_str)
+
+    codes = matrix_to_motif(h5read(save_str,"codes"))
+    values = h5read(save_str,"values")
+    map_ = Dict(codes .=> values)
+    return MotifDist(map_)
 end
 
 function load_flip_graph(save_str)
