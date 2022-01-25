@@ -59,8 +59,12 @@ function distance_mat(fg,weight,optimal_transport)
 end
 
 function ret_weights(fg::FlipGraph,motif::MotifArray)
+	return ret_weights(fg,avg_motif(motif))
+end
+
+function ret_weights(fg::FlipGraph,motif::MotifDist)
     # Find the distribution of networks in the connected comp of the flip graph
-	weight = avg_motif(motif).map
+	weight = motif.map
 
     weight_arr = zeros(Float64,nv(fg.g))
     key_arr = collect(keys(weight))
