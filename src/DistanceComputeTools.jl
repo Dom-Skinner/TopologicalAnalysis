@@ -10,8 +10,8 @@ using Base.Threads
 import Clp
 
 
-function calculate_distance_matrix(fg::FlipGraph,file_out,
-		motif_array; optimal_transport= true)
+function calculate_distance_matrix(fg::FlipGraph, motif_array;
+		optimal_transport= true)
     # This function is a wrapper for all other functions in this file
     # from a flip graph and n motifs in  it returns the
     # n by n distance matrix
@@ -20,8 +20,8 @@ function calculate_distance_matrix(fg::FlipGraph,file_out,
 
     weight = [ret_weights(fg,m) for m in motif_array]
 
-    d =  distance_mat(fg,weight,optimal_transport)
-	CSV.write(file_out,DataFrame(d,str_arr))
+    return distance_mat(fg,weight,optimal_transport)
+	
 
 end
 
