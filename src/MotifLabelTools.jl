@@ -12,6 +12,8 @@ end
 
 struct MotifDist
            map::Dict
+           dim::Int
+           r::Int
 end
 
 function compute_motifs(delaunay_in::TopologicalNetwork,r=-1)
@@ -36,10 +38,10 @@ function avg_motif(motif::Vararg{MotifDist,N}) where {N}
                 end
             end
         end
-        return MotifDist(Dict(tvecs .=> count))
+        return MotifDist(Dict(tvecs .=> count),motif[1].dim,motif[1].r)
 end
 function avg_motif(motif::Vararg{MotifArray,N}) where {N}
-        return MotifDist(countmap(vcat([m.tvec for m in motif]...)))
+        return MotifDist(countmap(vcat([m.tvec for m in motif]...)),motif[1].dim,motif[1].r)
 end
 ################################################################################
 # 2D Labeling code

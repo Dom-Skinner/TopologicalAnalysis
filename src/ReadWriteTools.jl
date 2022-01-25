@@ -35,6 +35,8 @@ function save(save_str,motif::MotifDist)
         write(file, "Type", "MotifDist")
         write(file, "codes", motif_to_matrix(collect(keys(motif.map))))
         write(file, "values", collect(values(motif.map)))
+        write(file, "dim", motif.dim)
+        write(file, "r", motif.r)
     end
 end
 
@@ -110,7 +112,9 @@ function load_motif_dist_array(save_str)
     codes = matrix_to_motif(h5read(save_str,"codes"))
     values = h5read(save_str,"values")
     map_ = Dict(codes .=> values)
-    return MotifDist(map_)
+    dim = h5read(save_str,"dim")
+    r = h5read(save_str,"r")
+    return MotifDist(map_,dim,r)
 end
 
 function load_flip_graph(save_str)
