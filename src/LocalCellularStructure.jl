@@ -18,7 +18,7 @@ include("ReadWriteTools.jl")
 
 export
         # For reading/writing
-        save, load, avg_motif,
+        save, load, avg_motif, TopologicalNetwork,
         readin!, readin, amalg2, get_files_dir, write_avg, weight_in,get_weights_in_dir,combine_distributions,
 
         # For computing topological types

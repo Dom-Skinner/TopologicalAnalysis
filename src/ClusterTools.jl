@@ -5,7 +5,67 @@ using Clustering: kmeans
 using StatsBase: var,mean,countmap
 
 
+function topological_cluster(Positions...;k=2,r=3,alpha=0)
+    g_collect = []
+    vmap_collect = []
+    for pos in Positions
+        g_part,vmap = connected_subgraph(pos,alpha)
+        push!(g_collect,g_part)
+        push!(vmap_collect,vmap)
+    end
+    #################### Debug ####################
+    return topological_cluster(g_collect...,k=k,r=r)
+    #################### Debug ####################
+    l = topological_cluster(g_collect...,k=k,r=r)
+    return [assign_remainders(vmap_collect[i],l[i],Positions[i],alpha)
+                for i = 1:length(Positions)]
+end
 
+function connected_subgraph(pos,alpha)
+    p, simplices, neighbours, edge_index, α_val,α_used = Delaunay_find(pos, alpha)
+    g_full = graph_construct(simplices,size(p,1))
+
+    g_con_idx = connected_components(g_full)
+    g_con_idx = g_con_idx[argmax(length.(g_con_idx))] # work with largest connected component
+
+    return induced_subgraph(g_full,g_con_idx)
+end
+
+
+function assign_remainders(vmap::Array,labels_part::Array,pos::Array,α)
+    # Now take a graph that is connected, and assign the remaining points to their
+    # most common neighboring labels
+
+    g_full = minimally_connected_graph(pos,α)
+
+    if nv(g_full) == length(labels_part)
+        return labels_part
+    end
+    labels_full = zeros(Int64,nv(g_full))
+    labels_full[vmap] .= labels_part
+
+    for j = 1:length(labels_full)
+        if labels_full[j] > 0
+            continue
+        end
+
+        for r_val = 2:10
+            N = unique(neighborhood(g_full,j,r_val))
+            local_labs = filter(x->x>0,labels_full[N])
+            if length(local_labs) > 0
+                N = countmap(local_labs)
+                v = collect(values(N))
+                idx = collect(keys(N))
+                labels_full[j] = idx[argmax(v)]
+                break
+            end
+        end
+
+    end
+
+    return labels_full
+end
+#=
 function topological_cluster(Positions::Array;k=2,r=3,α=0)
     p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, α)
     g_full = graph_construct(simplices,size(p,1))
@@ -50,7 +110,7 @@ function topological_cluster(Positions::Array;k=2,r=3,α=0)
 
     return labels_full
 end
-
+=#
 
 function minimally_connected_graph(Positions,α;iter_max_val=10)
     # If the alpha complex not connected, try again with a larger alpha
@@ -73,8 +133,11 @@ function minimally_connected_graph(Positions,α;iter_max_val=10)
 
 end
 
-function topological_cluster(g_full::Graph;k=2,r=3)
-
+function topological_evec(g_full::Graph;r=3,nev=6)
+    # For a given graph, compute the topological + spectral vector which we will
+    # apply k-means to.
+    @assert is_connected(g_full) # If g_full not connected, e-vecs will just be
+    # connected components
     renorm = x-> (x .- mean(x)) ./ norm(x .- mean(x))
 
     # compute topological statistics
@@ -84,19 +147,42 @@ function topological_cluster(g_full::Graph;k=2,r=3)
     r2 = renorm([mean(n[nb]) for nb in nbh])
 
     # compute diffusion statistics
-    λ,evecs = eigs(laplacian_matrix(g_full),nev=minimum([6;k]), which=:SR,maxiter=750)
+    λ,evecs = eigs(laplacian_matrix(g_full),nev=nev, which=:SR,maxiter=750)
 
     # combine and take kmeans
-    vec_tot = hcat([r1,r2,evecs[:,2:end]]...)
+    return hcat([r1,r2,evecs[:,2:end]]...)
+end
+
+function topological_cluster(g_full::Vararg{Graph,N};k=2,r=3) where {N}
+
+    nev = minimum([6,k])
+    vec_tot = vcat([topological_evec(g,r=r,nev=nev) for g in g_full]...)
     labels =  kmeans(collect(transpose(vec_tot)), k).assignments
-    make_connected!(labels,g_full)
+    lens = nv.(g_full)
+    labels = [labels[sum( s>1 ? lens[1:(s-1)] : 0)+1:sum(lens[1:s])] for s = 1:length(g_full)]
+
+    #################### Debug ####################
+    return [vec_tot[sum( s>1 ? lens[1:(s-1)] : 0)+1:sum(lens[1:s]),:] for s = 1:length(g_full)]
+    #################### Debug ####################
+
+    labels = [make_connected(labels[s],g_full[s]) for s in 1:length(g_full)]
 
     return labels
 end
 
-function make_connected!(labels,g_full)
+function topological_cluster(g_full::Graph;k=2,r=3)
+
+    vec_tot = topological_evec(g_full,r=r,nev=minimum([6,k]))
+    labels =  kmeans(collect(vec_tot), k).assignments
+    return make_connected(labels,g_full)
+
+end
+
+
+function make_connected(l_orig,g_full)
     # takes the clustering done by topological_cluster, and reassigns points that
     # are isolated, i.e. not in a major connected component.
+    labels = copy(l_orig)
     for l in unique(labels)
         # Find the connected components of the subgraph for a particular label
         g_sub,vmap = induced_subgraph(g_full,findall(l .== labels))
@@ -117,4 +203,5 @@ function make_connected!(labels,g_full)
             end
         end
     end
+    return labels
 end

@@ -29,6 +29,11 @@ function TopologicalNetwork(simplices::Array, not_edge::Array, dim::Int,
         edge_keep,tolerance,original_vertex_number,missing)
 end
 
+function TopologicalNetwork(tn::TopologicalNetwork, clusters::Array)
+    return TopologicalNetwork(tn.simplices, tn.not_edge, tn.dim, tn.periodic, tn.alpha,
+        tn.edge_keep,tn.tolerance,tn.original_vertex_number,clusters)
+end
+
 
 function find_delaunay_network(path_to_csv_in::String; periodic=false, alpha = 0,
                                 tol=0.6, edge_keep=false)
@@ -72,7 +77,7 @@ function circumradius3D(e1,e2,e3,e4)
     Dz = det(e_mat[:,[1:3; 5]])
     c = det(e_mat[:,1:4])
     r = Dx^2+Dy^2+Dz^2-4*a*c
-    if r >= 0
+    if r >= 0 && abs(a) > 0
     	return sqrt(r)/(2*abs(a))
     else
     	return Inf # infinite radius
@@ -153,7 +158,6 @@ function Delaunay_find(Positions,α)
 
     # Compute the α value of each simplex
     α_val = alpha_shape_eval(simplices,p)
-
     # Determine α threshold value
     if α == 0
         α = 2*median(α_val)
