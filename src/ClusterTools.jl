@@ -6,19 +6,33 @@ using StatsBase: var,mean,countmap
 
 
 function topological_cluster(Positions...;k=2,r=3,alpha=0)
-    g_collect = []
+
+    g_collect = SimpleGraph{Int64}[]
     vmap_collect = []
     for pos in Positions
         g_part,vmap = connected_subgraph(pos,alpha)
         push!(g_collect,g_part)
         push!(vmap_collect,vmap)
     end
-    #################### Debug ####################
-    return topological_cluster(g_collect...,k=k,r=r)
-    #################### Debug ####################
-    l = topological_cluster(g_collect...,k=k,r=r)
+
+
+    l = topological_cluster_core(g_collect,vmap_collect,Positions...,k=k,r=r)
     return [assign_remainders(vmap_collect[i],l[i],Positions[i],alpha)
                 for i = 1:length(Positions)]
+end
+
+function topological_cluster_core(g_collect,vmap_collect,Positions...;k=2,r=3)
+
+    vec_tot = vcat([topological_evec(g_collect[i],Positions[i][vmap_collect[i]],
+                    r=r) for i = 1:length(g_collect)]...)
+    labels =  kmeans(collect(transpose(vec_tot)), k).assignments
+    lens = nv.(g_collect)
+
+    labels = [labels[sum( s>1 ? lens[1:(s-1)] : 0)+1:sum(lens[1:s])] for s = 1:length(g_collect)]
+    println("got here...")
+    labels = [make_connected(labels[s],g_collect[s]) for s in 1:length(g_collect)]
+
+    return labels
 end
 
 function connected_subgraph(pos,alpha)
@@ -133,10 +147,10 @@ function minimally_connected_graph(Positions,α;iter_max_val=10)
 
 end
 
-function topological_evec(g_full::Graph;r=3,nev=6)
+function topological_evec(g_full::Graph,Pos::Array;r=3)
     # For a given graph, compute the topological + spectral vector which we will
     # apply k-means to.
-    @assert is_connected(g_full) # If g_full not connected, e-vecs will just be
+    #@assert is_connected(g_full) # If g_full not connected, e-vecs will just be
     # connected components
     renorm = x-> (x .- mean(x)) ./ norm(x .- mean(x))
 
@@ -147,28 +161,13 @@ function topological_evec(g_full::Graph;r=3,nev=6)
     r2 = renorm([mean(n[nb]) for nb in nbh])
 
     # compute diffusion statistics
-    λ,evecs = eigs(laplacian_matrix(g_full),nev=nev, which=:SR,maxiter=750)
+    #λ,evecs = eigs(laplacian_matrix(g_full),nev=nev, which=:SR,maxiter=750)
 
     # combine and take kmeans
-    return hcat([r1,r2,evecs[:,2:end]]...)
+    return hcat([r1,r2,Pos]...)#hcat([r1,r2,evecs[:,2:end]]...)
 end
 
-function topological_cluster(g_full::Vararg{Graph,N};k=2,r=3) where {N}
 
-    nev = minimum([6,k])
-    vec_tot = vcat([topological_evec(g,r=r,nev=nev) for g in g_full]...)
-    labels =  kmeans(collect(transpose(vec_tot)), k).assignments
-    lens = nv.(g_full)
-    labels = [labels[sum( s>1 ? lens[1:(s-1)] : 0)+1:sum(lens[1:s])] for s = 1:length(g_full)]
-
-    #################### Debug ####################
-    return [vec_tot[sum( s>1 ? lens[1:(s-1)] : 0)+1:sum(lens[1:s]),:] for s = 1:length(g_full)]
-    #################### Debug ####################
-
-    labels = [make_connected(labels[s],g_full[s]) for s in 1:length(g_full)]
-
-    return labels
-end
 
 function topological_cluster(g_full::Graph;k=2,r=3)
 
