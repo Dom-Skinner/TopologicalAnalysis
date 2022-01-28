@@ -23,7 +23,7 @@ end
 
 function topological_cluster_core(g_collect,vmap_collect,Positions...;k=2,r=3)
 
-    vec_tot = vcat([topological_evec(g_collect[i],Positions[i][vmap_collect[i]],
+    vec_tot = vcat([topological_evec(g_collect[i],Positions[i][vmap_collect[i],:],
                     r=r) for i = 1:length(g_collect)]...)
     labels =  kmeans(collect(transpose(vec_tot)), k).assignments
     lens = nv.(g_collect)
@@ -148,6 +148,7 @@ function minimally_connected_graph(Positions,α;iter_max_val=10)
 end
 
 function topological_evec(g_full::Graph,Pos::Array;r=3)
+    println(size(Pos))
     # For a given graph, compute the topological + spectral vector which we will
     # apply k-means to.
     #@assert is_connected(g_full) # If g_full not connected, e-vecs will just be
