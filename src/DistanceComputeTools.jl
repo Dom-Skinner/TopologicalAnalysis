@@ -21,7 +21,7 @@ function calculate_distance_matrix(fg::FlipGraph, motif_array;
     weight = [ret_weights(fg,m) for m in motif_array]
 
     return distance_mat(fg,weight,optimal_transport)
-	
+
 
 end
 
@@ -33,6 +33,16 @@ function triangle_index(k)
 	return k - T(kk-1),kk + 1
 end
 
+function abs_value(fg,weight)
+	# for caluclating avg. values for velocity and curvatures
+	g = fg.g
+	rem_self_edges!(g)
+	L = float.(laplacian_matrix(g))
+	D = float.(incidence_matrix(g,oriented=true))
+	f = x -> sum(abs.(D' * minres(L , x)))
+	d_flat = pmap(f,weight)
+	return d_flat
+end
 
 function distance_mat(fg,weight,optimal_transport)
 	n_needed = Int(ceil(0.5*length(weight)*(length(weight)-1)))

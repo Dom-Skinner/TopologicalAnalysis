@@ -216,7 +216,6 @@ end
 function weinberg2D(delaunay_in,r)
 
     simplices = delaunay_in.simplices
-    println(simplices[1:50,:])
     g = graph_construct(simplices,maximum(simplices))
     not_edge = delaunay_in.not_edge
     edge_index = setdiff(1:nv(g), not_edge)

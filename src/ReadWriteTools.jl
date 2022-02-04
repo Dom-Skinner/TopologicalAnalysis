@@ -52,10 +52,17 @@ function save(save_str,fg::FlipGraph)
 end
 
 function motif_to_matrix(tvec)
+
+    if length(tvec) ==0
+        return Int64[]
+    end
+
     tvec_len = length.(tvec)
     full_arr = zeros(Int64,length(tvec),maximum(tvec_len))
     for i = 1:length(tvec)
-        full_arr[i,1:tvec_len[i]] .= tvec[i]
+        if tvec_len[i] > 0
+            full_arr[i,1:tvec_len[i]] .= tvec[i]
+        end
     end
     return full_arr
 end

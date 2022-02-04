@@ -28,7 +28,7 @@ export
         FlipGraph,compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
 
         # For calculating distances
-        calculate_distance_matrix, geodesic_reg,
+        calculate_distance_matrix, geodesic_reg,abs_value,
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # clustering
@@ -38,5 +38,5 @@ export
         tvec_dist,moments_find,find_dist_props,TWpdf,
         # Misc.
         subsample_dist, motif_size_find, Delaunay_find, graph_construct,
-        find_delaunay_network_core
+        find_delaunay_network_core,ret_weights
 end
