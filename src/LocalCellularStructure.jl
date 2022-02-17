@@ -3,16 +3,13 @@ module LocalCellularStructure
 using Distributed
 
 
-#include("./DistributionTools/DistributionTools.jl")
-
-#include("./DistanceComputeTools/DistanceTools.jl")
-
 include("GraphConstruct.jl")
 include("Voronoi.jl")
 include("ClusterTools.jl")
 include("MotifLabelTools.jl")
 include("FlipGraphTools.jl")
 include("DistanceComputeTools.jl")
+include("DistributionTools.jl")
 include("ReadWriteTools.jl")
 
 
