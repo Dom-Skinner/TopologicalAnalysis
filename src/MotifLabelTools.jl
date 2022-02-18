@@ -8,12 +8,21 @@ struct MotifArray
            tvec::Array
            dim::Int
            r::Int
+           regions::Union{Array, Missing}
 end
 
 struct MotifDist
            map::Dict
            dim::Int
            r::Int
+end
+
+function MotifArray(idx::Array, tvec::Array, dim::Int, r::Int)
+    return MotifArray(idx, tvec, dim, r, missing)
+end
+
+function MotifArray(m::MotifArray, regions::Array)
+    return MotifArray(m.idx, m.tvec, m.dim, m.r, regions)
 end
 
 function compute_motifs(delaunay_in::TopologicalNetwork,r=-1)

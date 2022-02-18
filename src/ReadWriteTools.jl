@@ -28,6 +28,11 @@ function save(save_str,motif::MotifArray)
         write(file, "tvec", motif_to_matrix(motif.tvec))
         write(file, "dim", motif.dim)
         write(file, "r", motif.r)
+        if ismissing(motif.regions)
+            write(file, "clusters", "missing")
+        else
+            write(file, "clusters", motif.regions)
+        end
     end
 end
 function save(save_str,motif::MotifDist)
@@ -109,8 +114,16 @@ function load_motif_array(save_str)
     tvec = matrix_to_motif(h5read(save_str,"tvec"))
     dim = h5read(save_str,"dim")
     r = h5read(save_str,"r")
+    try
+        regions  = h5read(save_str,"regions")
+    catch
+        regions = "missing"
+    end
+    if regions == "missing"
+        regions = missing
+    end
 
-    return MotifArray(idx, tvec, dim, r)
+    return MotifArray(idx, tvec, dim, r,regions)
 end
 
 
