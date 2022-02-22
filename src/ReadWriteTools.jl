@@ -29,9 +29,9 @@ function save(save_str,motif::MotifArray)
         write(file, "dim", motif.dim)
         write(file, "r", motif.r)
         if ismissing(motif.regions)
-            write(file, "clusters", "missing")
+            write(file, "regions", "missing")
         else
-            write(file, "clusters", motif.regions)
+            write(file, "regions", motif.regions)
         end
     end
 end
