@@ -1,6 +1,7 @@
 using Distributions
 using ForwardDiff
 using RandomMatrices
+using StatsBase:countmap
 # Tools for investigating how the distribution of motif sizes vary. To be expanded
 
 function tvec_dist(m::MotifArray)
@@ -24,6 +25,18 @@ function tvec_dist(m::MotifDist)
     p_len = freq_len/sum(freq_len)
 
     return len_unique,p_len
+end
+
+function resample(m::MotifDist,N::Int)
+    # sample N points from the distribution m and return back a MotifArray
+    m_arr = collect(keys(m.map))
+    count = cumsum(collect(values(m.map)))
+    probs = count/count[end]
+
+    rnd_pts = rand(N)
+    idx = [findfirst(x-> x >= l,probs) for l in rnd_pts]
+
+    return MotifDist(countmap(m_arr[idx]),m.dim,m.r)
 end
 
 function moments_find(m::MotifArray,n=2)

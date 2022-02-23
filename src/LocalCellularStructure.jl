@@ -32,7 +32,7 @@ export
         topological_cluster,
 
         # Distribution tools
-        tvec_dist,moments_find,find_dist_props,TWpdf,
+        tvec_dist,moments_find,find_dist_props,TWpdf,resample,
         # Misc.
         subsample_dist, motif_size_find, Delaunay_find, graph_construct,
         find_delaunay_network_core,ret_weights, MotifArray
