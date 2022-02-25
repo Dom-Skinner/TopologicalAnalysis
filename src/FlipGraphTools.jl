@@ -14,7 +14,7 @@ end
 function compute_flip(motifs...; restrict = 0, edge_keep = false,thresh=1.5)
 
     dim = motifs[1].dim
-    weight = avg_motif(motifs...).map
+    weight = avg_motif(avg_motif.(motifs)...).map # convert all into same type
     weight = filter(x->last(x)>restrict,weight)
     if dim == 2
         fg = compute_flip_graph(weight)
