@@ -131,7 +131,11 @@ function minimally_connected_graph(Positions,α;iter_max_val=10)
 
         α = 2*α
         p, simplices, neighbours, edge_index, α_val,α = Delaunay_find(Positions, α)
-        g_full = graph_construct(simplices,size(p,1))
+        if size(p,2) == 3
+            g_full = graph_construct(simplices,size(p,1))
+        elseif size(p,2) == 2
+            g_full = graph_construct(simplices[α_val .< α,:],size(p,1))
+        end
 
         if is_connected(g_full)
             return g_full
@@ -163,7 +167,7 @@ function geom_color(pos,alpha)
     end
     g_full = graph_construct(simplices,size(p,1))
 
-    #=
+
     α_mean = zeros(size(p,1))
     α_var = zeros(size(p,1))
     for i = 1:size(p,1)
@@ -171,7 +175,8 @@ function geom_color(pos,alpha)
         α_mean[i] = mean([α_val[id[1]] for id in idx])
         α_var[i] = var([α_val[id[1]] for id in idx])
     end
-=#
+
+#=
     tet_vol = [tetra_vol(p[simplices[i,1],:],p[simplices[i,2],:],
                     p[simplices[i,3],:],p[simplices[i,4],:]) for i in 1:size(simplices,1)]
 
@@ -182,6 +187,7 @@ function geom_color(pos,alpha)
         α_mean[i] = mean([tet_vol[id[1]] for id in idx])
         α_var[i] = var([tet_vol[id[1]] for id in idx])
     end
+=#
 
     return α_mean,α_var
 end
@@ -197,13 +203,13 @@ function topological_evec(g_full::Graph,r1;r=3,nev=6)
 
     # compute topological statistics
     nbh = [neighborhood(g_full,i,r) for i = 1:nv(g_full)]
-    #n = length.(nbh)
+    n = length.(nbh)
     r1_ = renorm(([var(r1[nb]) for nb in nbh]))
     r2_ = renorm(([mean(r1[nb]) for nb in nbh]))
-    #r1 = renorm(sortperm([var(n[nb]) for nb in nbh]))
-    #r2 = renorm(sortperm([mean(n[nb]) for nb in nbh]))
-    #r1 = renorm(([var(n[nb]) for nb in nbh]))
-    #r2 = renorm(([mean(n[nb]) for nb in nbh]))
+    #r1_ = renorm(sortperm([var(n[nb]) for nb in nbh]))
+    #r2_ = renorm(sortperm([mean(n[nb]) for nb in nbh]))
+    #r1_ = renorm(([var(n[nb]) for nb in nbh]))
+    #r2_ = renorm(([mean(n[nb]) for nb in nbh]))
 
     #scale = norm(pos[:,1])
     # compute diffusion statistics

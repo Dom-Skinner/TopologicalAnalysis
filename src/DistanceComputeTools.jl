@@ -208,12 +208,59 @@ function find_reg_geo(p0,p1,g,k)
         return q_full, k*problem.optval
 end
 
+function find_geo(p0,p1,fg,k)
+		# first sparsify the graph by solving a min cost flow and only retaining
+		# the edges used in that process
+        flow = W_dist(fg.g,p0 .- p1,true;tol=0.0)
+        flow[findall(flow .< 0)] .= 0
+        flow = flow[1:length(p0),1:length(p0)]
+        I,J,V = findnz(flow)
+
+        verts = unique(vcat(I,J))
+        verts_inv = Dict(verts .=> 1:length(verts))
+        num_v = length(verts)
+        num_e = length(I)
+        p0_v = p0[verts]
+        p1_v = p1[verts]
+
+		# With graph specified, now set up the convex problem
+        q = Variable(num_v,k+1)
+        F = Variable(num_e,k)
+
+        obj_ = sum([quadoverlin(F[e,i], q[verts_inv[I[e]],i]) +
+                quadoverlin(F[e,i], q[verts_inv[J[e]],i+1])  for i = 1:k for e = 1:num_e])
+
+        con1 = q >= 0
+        con2 = [-sum(F[findall(I .== j),i]) + sum(F[findall(J .== j),i]) == q[verts_inv[j],i+1]-q[verts_inv[j],i] for i = 1:k for j in verts]
+        con3 = q[:,1] == p0_v
+        con4 = q[:,end] == p1_v
+        con5 = F >= 0.0
+
+        problem = minimize(obj_, [con1;con2;con3;con4;con5])
+        solve!(problem, () -> Mosek.Optimizer())
+        println(problem.status)
+
+        q_full = zeros(length(p0),k+1)
+        for i = 1:(k+1)
+                q_full[verts,i] .= q.value[:,i]
+        end
+        return q_full, k*problem.optval
+end
+
+
 function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
         fg = load(network_save_file)
         w_vec_in = [w1;w2]
         weight = [ret_weights(fg,w_vec_in[i]) for i in 1:length(w_vec_in)]
         q,val = find_reg_geo(α*weight[1]+(1.0-α)*weight[2],β*weight[1]
                                 +(1.0-β)*weight[2],g,k)
+        return q,val
+end
+
+function geodesic_comp(fg,w1,w2,k)
+        w1_ = ret_weights(fg,w1)
+		w2_ = ret_weights(fg,w2)
+        q,val = find_geo(w1,w2,fg,k)
         return q,val
 end
 

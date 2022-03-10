@@ -25,11 +25,11 @@ export
         FlipGraph,compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
 
         # For calculating distances
-        calculate_distance_matrix, geodesic_reg,abs_value,
+        calculate_distance_matrix, geodesic_reg,abs_value,geodesic_comp,
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # clustering
-        topological_cluster,
+        topological_cluster,minimally_connected_graph,
 
         # Distribution tools
         tvec_dist,moments_find,find_dist_props,TWpdf,resample,
