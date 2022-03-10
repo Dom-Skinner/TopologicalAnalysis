@@ -257,13 +257,14 @@ function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
         return q,val
 end
 
+#=
 function geodesic_comp(fg,w1,w2,k)
         w1_ = ret_weights(fg,w1)
 		w2_ = ret_weights(fg,w2)
         q,val = find_geo(w1,w2,fg,k)
         return q,val
 end
-
+=#
 function distance_OT(g,W)
 
     try
