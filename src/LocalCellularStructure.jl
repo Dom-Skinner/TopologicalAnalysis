@@ -25,7 +25,7 @@ export
         FlipGraph,compute_flip_graph, compute_flip, compute_motifs,connected_flip_graph,
 
         # For calculating distances
-        calculate_distance_matrix, geodesic_reg,abs_value,find_geo,
+        calculate_distance_matrix, geodesic_reg,abs_value,find_geo,W_dist,
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # clustering
