@@ -1,13 +1,13 @@
 using Distributed
 using IterativeSolvers
 using LinearAlgebra
-using LightGraphsFlows
 import LightGraphs
 const lg = LightGraphs
 import StatsBase
 using SparseArrays
 using Base.Threads
-import Clp
+
+using JuMP, Gurobi
 
 
 function calculate_distance_matrix(fg::FlipGraph, motif_array;
@@ -53,7 +53,7 @@ function distance_mat(fg,weight,optimal_transport)
 
 
 	if optimal_transport
-		f = x -> W_dist(g,x)
+		f = x -> min_cost_flow(g,x)
 	else
 		L = float.(laplacian_matrix(g))
 		D = float.(incidence_matrix(g,oriented=true))
@@ -88,192 +88,14 @@ function ret_weights(fg::FlipGraph,motif::MotifDist)
 end
 
 
-
-
-function W_dist(g_undirected,S,ret_flow = false;tol=5e-5)
-
-    # First create a directed version of g_undirected with edges in both
-    # directions and capacities/costs equal to 1
-
-    Nv = lg.nv(g_undirected)
-    g = lg.DiGraph(Nv+2) # Create a flow-graph
-    w = spzeros(Nv+2,Nv+2)
-    capacity = spzeros(Nv+2,Nv+2)
-
-    for e in lg.edges(g_undirected)
-        lg.add_edge!(g,lg.src(e),lg.dst(e))
-        lg.add_edge!(g,lg.dst(e),lg.src(e))
-        capacity[lg.src(e),lg.dst(e)] = 1.
-        capacity[lg.dst(e),lg.src(e)] = 1.
-        w[lg.src(e),lg.dst(e)] = 1.
-        w[lg.dst(e),lg.src(e)] = 1.
-    end
-
-    # Take the Nv+1th vertex as a source and Nv+2th as a sink.
-    demand = spzeros(Nv+2,Nv+2)
-    for i in 1:Nv
-        if S[i] > 0
-            lg.add_edge!(g,Nv+1,i)
-            capacity[Nv+1,i] = S[i]*(1+tol)
-        elseif S[i] < - 0.1*tol
-            lg.add_edge!(g,i,Nv+2)
-            demand[i,Nv+2] = -S[i]*(1-tol)
-            capacity[i,Nv+2] = 1.
-
-        end
-    end
-    println("Is connected?: ", lg.is_connected(g))
-    println("Demand ", sum(demand))
-    println("Sum S ", sum(S))
-    println("Out capacity ", sum(capacity[Nv+1,:]))
-    println("In capacity ", sum(capacity[:,Nv+2]))
-    # call min cost flow
-    flow = mincost_flow(g,spzeros(lg.nv(g)), capacity , w, Clp.Optimizer,
-                edge_demand=demand, source_nodes=[Nv+1], sink_nodes=[Nv+2])
-    if ret_flow
-        return flow
-    else
-        return sum(abs.(flow[1:Nv,1:Nv]))
-    end
-end
-
 function sample_dist(probs,N)
+	# should this be somewhere else? IDK?
     w = StatsBase.Weights(probs)
     p_emp = zeros(length(probs))
     for i = 1:N
         p_emp[StatsBase.sample( w)] += 1
     end
     return p_emp/sum(p_emp)
-end
-
-function geo_core(w_in,flow,α,N)
-    weight_geo = deepcopy(w_in)
-
-    I,J,V = findnz(flow)
-    for i = 1:length(I)
-        if (I[i] > length(weight_geo)) || (J[i] > length(weight_geo))
-            continue
-        end
-        weight_geo[I[i]] -= α*V[i]
-        weight_geo[J[i]] += α*V[i]
-    end
-    return sample_dist(weight_geo,N)
-end
-
-
-
-function geodesic(w1,w2,α,network_save_file,N)
-    w_vec_in = [w1;w2]
-    fg = load(network_save_file)
-	fg = connected_flip_graph(fg)
-    weight = [ret_weights(fg, m) for m in w_vec_in]
-    flow = W_dist(fg.g,weight[1] .- weight[2],true)
-    w_geo = [geo_core(weight[1],flow,α0,N) for α0 in α]
-    return w_geo
-end
-
-function find_reg_geo(p0,p1,g,k)
-        flow = W_dist(g,p0 .- p1,true;tol=0.0)
-        flow[findall(flow .< 0)] .= 0
-        flow = flow[1:length(p0),1:length(p0)]
-        I,J,V = findnz(flow)
-        W1_cost = sum(abs.(flow))
-        verts = unique(vcat(I,J))
-        verts_inv = Dict(verts .=> 1:length(verts))
-        num_v = length(verts)
-        num_e = length(I)
-        p0_v = p0[verts]
-        p1_v = p1[verts]
-
-        q = Variable(num_v,k+1)
-        F = Variable(num_e,k)
-
-        obj_ = sum([quadoverlin(F[e,i], q[verts_inv[I[e]],i]) +
-                quadoverlin(F[e,i], q[verts_inv[J[e]],i+1])  for i = 1:k for e = 1:num_e])
-
-        con1 = q >= 0
-        con2 = [-sum(F[findall(I .== j),i]) + sum(F[findall(J .== j),i]) == q[verts_inv[j],i+1]-q[verts_inv[j],i] for i = 1:k for j in verts]
-        con3 = q[:,1] == p0_v
-        con4 = q[:,end] == p1_v
-        con5 = F >= 0.0
-        con6 = sum(F) <= W1_cost*1.08
-        problem = minimize(obj_, [con1;con2;con3;con4;con5;con6])
-        solve!(problem, () -> Mosek.Optimizer())
-        println(problem.status)
-
-        q_full = zeros(length(p0),k+1)
-        for i = 1:(k+1)
-                q_full[verts,i] .= q.value[:,i]
-        end
-        return q_full, k*problem.optval
-end
-
-function find_geo(p0,p1,fg,k)
-		# first sparsify the graph by solving a min cost flow and only retaining
-		# the edges used in that process
-        flow = W_dist(fg.g,p0 .- p1,true;tol=0.0)
-        flow[findall(flow .< 0)] .= 0
-        flow = flow[1:length(p0),1:length(p0)]
-        I,J,V = findnz(flow)
-
-        verts = unique(vcat(I,J))
-        verts_inv = Dict(verts .=> 1:length(verts))
-        num_v = length(verts)
-        num_e = length(I)
-        p0_v = p0[verts]
-        p1_v = p1[verts]
-
-		# With graph specified, now set up the convex problem
-        q = Variable(num_v,k+1)
-        F = Variable(num_e,k)
-
-        obj_ = sum([quadoverlin(F[e,i], q[verts_inv[I[e]],i]) +
-                quadoverlin(F[e,i], q[verts_inv[J[e]],i+1])  for i = 1:k for e = 1:num_e])
-
-        con1 = q >= 0
-        con2 = [-sum(F[findall(I .== j),i]) + sum(F[findall(J .== j),i]) == q[verts_inv[j],i+1]-q[verts_inv[j],i] for i = 1:k for j in verts]
-        con3 = q[:,1] == p0_v
-        con4 = q[:,end] == p1_v
-        con5 = F >= 0.0
-
-        problem = minimize(obj_, [con1;con2;con3;con4;con5])
-        solve!(problem, () -> Mosek.Optimizer())
-        println(problem.status)
-
-        q_full = zeros(length(p0),k+1)
-        for i = 1:(k+1)
-                q_full[verts,i] .= q.value[:,i]
-        end
-        return q_full, k*problem.optval
-end
-
-
-function geodesic_reg(network_save_file,w1,w2,k;α=1.0,β=0.0)
-        fg = load(network_save_file)
-        w_vec_in = [w1;w2]
-        weight = [ret_weights(fg,w_vec_in[i]) for i in 1:length(w_vec_in)]
-        q,val = find_reg_geo(α*weight[1]+(1.0-α)*weight[2],β*weight[1]
-                                +(1.0-β)*weight[2],g,k)
-        return q,val
-end
-
-#=
-function geodesic_comp(fg,w1,w2,k)
-        w1_ = ret_weights(fg,w1)
-		w2_ = ret_weights(fg,w2)
-        q,val = find_geo(w1,w2,fg,k)
-        return q,val
-end
-=#
-function distance_OT(g,W)
-
-    try
-    	d =  W_dist(g,W)
-        return d
-    catch
-    	d = W_dist(g,-W)
-        return d
-    end
 end
 
 function rem_self_edges!(g)
@@ -283,4 +105,88 @@ function rem_self_edges!(g)
             lg.rem_edge!(g,e)
         end
     end
+end
+
+function min_cost_flow(g,sources)
+    # sources to be a vector of length nv(g), with zeros as necessary
+    @assert LightGraphs.nv(g) == length(sources)
+    # sum of sources to be zero to machine precision
+    @assert abs(sum(sources)) < 1e-12
+
+    es = collect(lg.edges(g))
+    Es = [lg.src(e) for e in es]
+    Ed = [lg.dst(e) for e in es]
+    e = hcat(Es,Ed)
+    e_rev = hcat(Ed, Es);
+    e_tot = [e;e_rev];
+    ne = size(e_tot,1);
+
+    i = [e_tot[:,1];e_tot[:,2]];
+    j = [(1:ne);(1:ne)];
+    v = [ones(ne);-1*ones(ne)];
+
+    model = Model(Gurobi.Optimizer)
+    @variable(model, J[1:ne] >= 0)
+    @objective(model, Min, sum(J))
+    A = sparse(i,j,v)
+    @constraint(model, A*J .== sources)
+
+    optimize!(model)
+    return objective_value(model), value.(J)
+end
+
+function CFTDist(g,p0,p1;k=10)
+
+    # first solve min_cost_flow to identify non-zero edges to solve full minimization over
+    v,J = min_cost_flow(g,p0 .- p1)
+
+    # collect only the edges which were used for min_cost_flow
+    es = collect(lg.edges(g))
+    Es = [lg.src(e) for e in es]
+    Ed = [lg.dst(e) for e in es]
+    e = hcat(Es,Ed)
+    e_rev = hcat(Ed, Es);
+    e_tot = [e;e_rev];
+    e_reduced = e_tot[J .> 0 ,:]
+    nz_verts = unique(e_reduced)
+
+    # collect only vertices which do not change mass between 0 and 1
+    p0_v = p0[nz_verts]
+    p1_v = p1[nz_verts]
+
+
+    verts_inv = Dict(nz_verts .=> 1:length(nz_verts))
+    num_v = length(nz_verts)
+    num_e = size(e_reduced,1)
+
+    # With graph specified, now set up the convex problem
+    model = Model(Gurobi.Optimizer)
+    @variable(model,q[1:num_v,1:k+1])
+    @variable(model,F[1:num_e,1:k])
+    @variable(model,s1[1:num_e,1:k])
+    @variable(model,s2[1:num_e,1:k])
+
+    # rewrite the objective as linear, with SOC constraints
+    @objective(model,Min,sum(s1) + sum(s2))
+
+    @constraint(model,q[:,1] .== p0_v)
+    @constraint(model,q[:,end] .== p1_v)
+
+    for i = 1:k , j in nz_verts
+    @constraint(model,-sum(F[findall(e_reduced[:,1] .== j),i]) +
+        sum(F[findall(e_reduced[:,2] .== j),i]) == q[verts_inv[j],i+1]-q[verts_inv[j],i] )
+    end
+    for i = 1:k, e = 1:num_e
+        # [s;q;F] RotatedSecondOrderCone() is just constraining s*q >= F^2
+        @constraint(model, [s1[e,i];q[verts_inv[e_reduced[e,1]],i]; F[e,i]] in RotatedSecondOrderCone() )
+        @constraint(model, [s2[e,i];q[verts_inv[e_reduced[e,2]],i+1]; F[e,i]] in RotatedSecondOrderCone())
+    end
+    optimize!(model)
+
+
+    q_full = zeros(length(p0),k+1)
+    for i = 1:(k+1)
+            q_full[nz_verts,i] .= value.(q[:,i])
+    end
+    return q_full, k*objective_value(model)
 end
