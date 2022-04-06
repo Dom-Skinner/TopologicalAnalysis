@@ -111,7 +111,7 @@ function min_cost_flow(g,sources)
     # sources to be a vector of length nv(g), with zeros as necessary
     @assert LightGraphs.nv(g) == length(sources)
     # sum of sources to be zero to machine precision
-    @assert abs(sum(sources)) < 1e-12
+    #@assert abs(sum(sources)) < 1e-12
 
     es = collect(lg.edges(g))
     Es = [lg.src(e) for e in es]
@@ -154,13 +154,14 @@ function CFTDist(g,p0,p1;k=10)
     p0_v = p0[nz_verts]
     p1_v = p1[nz_verts]
 
-
     verts_inv = Dict(nz_verts .=> 1:length(nz_verts))
     num_v = length(nz_verts)
     num_e = size(e_reduced,1)
 
     # With graph specified, now set up the convex problem
     model = Model(Gurobi.Optimizer)
+	set_optimizer_attributes(model, "OptimalityTol" => 1e-9)
+	set_optimizer_attributes(model, "FeasibilityTol" => 1e-9)
     @variable(model,q[1:num_v,1:k+1])
     @variable(model,F[1:num_e,1:k])
     @variable(model,s1[1:num_e,1:k])
@@ -181,12 +182,91 @@ function CFTDist(g,p0,p1;k=10)
         @constraint(model, [s1[e,i];q[verts_inv[e_reduced[e,1]],i]; F[e,i]] in RotatedSecondOrderCone() )
         @constraint(model, [s2[e,i];q[verts_inv[e_reduced[e,2]],i+1]; F[e,i]] in RotatedSecondOrderCone())
     end
-    optimize!(model)
 
+    optimize!(model)
 
     q_full = zeros(length(p0),k+1)
     for i = 1:(k+1)
             q_full[nz_verts,i] .= value.(q[:,i])
     end
-    return q_full, k*objective_value(model)
+    return q_full, sqrt(k*objective_value(model))
+end
+
+
+
+function CFTD_perturbation_0(g,p0,p1,r1;k=10)
+
+    # collect edges
+    es = collect(lg.edges(g))
+    Es = [lg.src(e) for e in es]
+    Ed = [lg.dst(e) for e in es]
+    e = hcat(Es,Ed)
+    e_rev = hcat(Ed, Es);
+    e_tot = [e;e_rev];
+
+    num_v = lg.nv(g)
+    num_e = size(e_tot,1)
+
+    # With graph specified, now set up the convex problem
+    model = Model(Gurobi.Optimizer)
+	#set_optimizer_attributes(model, "OptimalityTol" => 1e-7)
+	#set_optimizer_attributes(model, "FeasibilityTol" => 1e-7)
+    @variable(model,q1[1:num_v,1:k+1] )
+    @variable(model,F0[1:num_e,1:k] >= 0)
+
+    # rewrite the objective as linear, with SOC constraints
+    @objective(model,Min,sum(F0[j,i]^2 *(1/p0[e_tot[j,1]] + 1/p0[e_tot[j,2]])/2
+			for i=1:k for j = 1:num_e ))
+
+    @constraint(model,q1[:,1] .== r1)
+    @constraint(model,q1[:,end] .== p1)
+
+    for i = 1:k , j in 1:num_v
+    @constraint(model,-sum(F0[findall(e_tot[:,1] .== j),i]) +
+        sum(F0[findall(e_tot[:,2] .== j),i]) == q1[j,i+1]-q1[j,i] )
+    end
+
+    optimize!(model)
+
+	F0_used = zeros(lg.ne(g),k)
+	edge_used = [maximum(value.(F0[i,:])) > maximum(value.(F0[i+lg.ne(g),:])) for i = 1:lg.ne(g)]
+	edge_used = vcat(edge_used, .!edge_used)
+
+	F0_used = value.(F0[edge_used,:])
+
+    return e_tot[edge_used,:],F0_used,value.(q1), sqrt(k*objective_value(model))
+end
+
+
+
+function CFTD_perturbation_1(e,p0,F0,q1,p2,r2;k=10)
+
+    # collect edges
+	num_v = length(unique(e))
+	num_e = size(e,1)
+
+
+    # With graph specified, now set up the convex problem
+    model = Model(Gurobi.Optimizer)
+	#set_optimizer_attributes(model, "OptimalityTol" => 1e-7)
+	#set_optimizer_attributes(model, "FeasibilityTol" => 1e-7)
+    @variable(model,q2[1:num_v,1:k+1] )
+    @variable(model,F1[1:num_e,1:k])
+
+    @objective(model,Min,sum(F1[j,i]*F0[j,i] *(1/p0[e[j,1]] + 1/p0[e[j,2]]) +
+			F0[j,i]^2 *(-q1[e[j,1],i]/p0[e[j,1]]^2 -q1[e[j,2],i+1]/p0[e[j,2]]^2)/2
+			for i=1:k for j = 1:num_e ))
+
+    @constraint(model,q2[:,1] .== r2)
+    @constraint(model,q2[:,end] .== p2)
+
+    for i = 1:k , j in 1:num_v
+    @constraint(model,-sum(F1[findall(e[:,1] .== j),i]) +
+        sum(F1[findall(e[:,2] .== j),i]) == q2[j,i+1]-q2[j,i] )
+    end
+	#return model
+    optimize!(model)
+
+
+    return value.(F1), value.(q2), k*objective_value(model)
 end
