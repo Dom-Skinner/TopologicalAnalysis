@@ -28,7 +28,7 @@ export
 
         # For calculating distances
         calculate_distance_matrix, abs_value, min_cost_flow, CFTDist,
-        CFTD_perturbation_0, CFTD_perturbation_1, CFTD_perturbation_2,
+        CFTD_perturbation_0, CFTD_perturbation_1, CFTD_perturbation_2,CFTD_perturbation_2_alt,
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # clustering

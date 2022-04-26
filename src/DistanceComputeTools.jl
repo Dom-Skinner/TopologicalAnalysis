@@ -220,7 +220,7 @@ function CFTD_perturbation_0(g,p0,p1,r1)
 
     for j in 1:num_v
 	    @constraint(model,-sum(J1[findall(e_tot[:,1] .== j)]) +
-	        sum(J1[findall(e_tot[:,2] .== j)]) == p1[j]  - r1[j])
+	        sum(J1[findall(e_tot[:,2] .== j)]) == r1[j]  - p1[j])
     end
 
     optimize!(model)
@@ -245,19 +245,19 @@ function CFTD_perturbation_1(e,p0,J1,p1,r1,p2,r2)
 	V = [-1*ones(size(e,1));ones(size(e,1))]
 	Dt = sparse(I,J,V)
 
-	if maximum(abs.(p2 .- r2))<1e-10
+	if maximum(abs.(r2 .- p2))<1e-10
 		J2 = zeros(num_e)
 	else
-		J2 = lsmr(Dt, p2 .- r2)
+		J2 = lsmr(Dt, r2 .- p2)
 	end
-	#F1 = Dt \ (p2 .- r2)
+	#F1 = Dt \ (r2 .- p2)
 
 	chi = sum(  J2[i]*J1[i]*( 1/ p0[e[i,1]] + 1/p0[e[i,2]]) for i in 1:num_e)
 
 	lambda = -0.25*sum( J1[i]^2 * ( (p1[e[i,1]] +r1[e[i,1]])/p0[e[i,1]]^2 +
 		(p1[e[i,2]] +r1[e[i,2]])/p0[e[i,2]]^2) for i in 1:num_e)
 	I1 = chi+lambda
-    return chi, I1
+    return I1
 end
 
 
@@ -284,17 +284,76 @@ function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2,nu2;k=10)
         sum(J2[findall(e[:,2] .== j),i]) == q2[verts_inv[j],i+1]-q2[verts_inv[j],i] )
     end
 
-	#nu = [J1[i]*( 1/ p0[e[i,1]] + 1/p0[e[i,2]]) for i = 1:num_e]
+	#nu = [J1[i]*( 1/ p0[verts_inv[e[i,1]]] + 1/p0[verts_inv[e[i,2]]]) for i = 1:num_e]
 	#@constraint(model, sum( sum(J2[j,:])*nu[j] for j = 1:num_e) == chi)
 
-
+	l2 = (0.25/k^3)*sum(J1[j]^2  *( ((k-i)*p1[e[j,1]] + i*r1[e[j,1]])^2 / p0[e[j,1]]^3 +
+	 	((k-i+1)*p1[e[j,2]] + (i-1)*r1[e[j,2]])^2/p0[e[j,2]]^3)  for i = 1:k,j = 1:num_e)
 
 	@objective(model,Min,sum(J2[j,i]*nu2[j,i] for i = 1:k,j = 1:num_e) +
 			0.5*k*sum(J2[j,i]^2 *( 1/ p0[e[j,1]] + 1/p0[e[j,2]])  for i = 1:k,j = 1:num_e) -
-			(0.5/k)*sum(J1[j]^2 *( q2[e[j,1],i+1]/ p0[e[j,1]]^2 + q2[e[j,2],i]/p0[e[j,2]]^2)  for i = 1:k,j = 1:num_e))
+			(0.5/k)*sum(J1[j]^2 *( q2[verts_inv[e[j,1]],i+1]/ p0[e[j,1]]^2 + q2[verts_inv[e[j,2]],i]/p0[e[j,2]]^2)  for i = 1:k,j = 1:num_e))
 
-	println(model)
+	println(l2)
 	optimize!(model)
+	println(model)
+    return objective_value(model)#,l2,value.(J2),value.(q2)
+end
 
-    return objective_value(model)
+
+function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
+
+	@assert size(e,1) == length(J1)
+
+	num_e = size(e,1)
+	verts = unique(e)
+	num_v = length(verts)
+	verts_inv = Dict(verts .=> 1:num_v)
+
+	model = Model(Gurobi.Optimizer)
+
+	@variable(model,s[1:num_v])
+	@variable(model,F[1:num_e])
+	@variable(model,G[1:num_e])
+
+	p0_u = p0[e[:,1]]
+	p0_v = p0[e[:,2]]
+	p1_u = p1[e[:,1]]
+	p1_v = p1[e[:,2]]
+	r1_u = r1[e[:,1]]
+	r1_v = r1[e[:,2]]
+
+
+    for j in verts
+    @constraint(model,-sum(F[findall(e[:,1] .== j)]) +
+        sum(F[findall(e[:,2] .== j)]) == r2[j] -p2[j] + s[verts_inv[j]])
+	@constraint(model,-sum(G[findall(e[:,1] .== j)]) +
+        sum(G[findall(e[:,2] .== j)]) == -2*s[verts_inv[j]])
+    end
+
+	χ₁ = J1 .* ( 0.5*(p1_u .+ r1_u)./p0_u.^2 .+ 0.5*(p1_v .+ r1_v)./p0_v.^2 )
+	χ₂ = J1 .* ( (p1_u/6 .+ r1_u/3)./p0_u.^2 .+ (p1_v/6 .+ r1_v/3)./p0_v.^2 )
+	#χ₁ = zeros(size(J1))
+	#χ₂ = zeros(size(J1))
+	χ₃ = zeros(size(J1))
+	for j = 1:num_e
+	#	χ₁[j] = J1[j] * ( 0.5*(p1_u[j] + r1_u[j])/p0_u[j]^2 + 0.5*(p1_v[j] + r1_v[j])/p0_v[j]^2 )
+	#	χ₂[j] = J1[j] * ( (p1_u[j]/6 + r1_u[j]/3)/p0_u[j]^2 + (p1_v[j]/6 + r1_v[j]/3)/p0_v[j]^2 )
+		χ₃[j] = 0.5*(p2[e[j,1]] + r2[e[j,1]])/p0_u[j]^2 + 0.5*(p2[e[j,2]] + r2[e[j,2]])/p0_v[j]^2
+	end
+
+	λ₂ = (1/12)*sum(J1[j]^2  *( (p1[e[j,1]]^2 +  p1[e[j,1]]*r1[e[j,1]] + r1[e[j,1]]^2) / p0[e[j,1]]^3 +
+	 	(p1[e[j,2]]^2 +  p1[e[j,2]]*r1[e[j,2]] + r1[e[j,2]]^2)/p0[e[j,2]]^3)  for j = 1:num_e)
+
+
+		@objective(model,Min,-sum(F[j]*χ₁[j] .+ G[j]*χ₂[j] for j=1:num_e) +
+		0.5*sum( (F[j]^2 + F[j]*G[j] + (1/3)*G[j]^2)*( 1/ p0[e[j,1]] + 1/p0[e[j,2]]) for j = 1:num_e) -
+		0.5*sum(J1[j]^2 *(χ₃[j] + (1/6)*s[verts_inv[e[j,1]]]/ p0[e[j,1]]^2 + (1/6)*s[verts_inv[e[j,2]]]/ p0[e[j,2]]^2)  for j = 1:num_e) )
+	#@objective(model,Min,-sum(F[j]*χ₁[j] .+ G[j]*χ₂[j] for j=1:num_e) +
+	#		0.5*sum( (F[j]^2 + F[j]*G[j] + (1/3)*G[j]^2)*( 1/ p0[e[j,1]] + 1/p0[e[j,2]]) for j = 1:num_e) -
+	#		0.5*sum(J1[j]^2 *(χ₃[j] + (1/6)*s[verts_inv[e[j,1]]]/ p0[e[j,1]]^2 + (1/6)*s[verts_inv[e[j,2]]]/ p0[e[j,2]]^2  for j = 1:num_e)))
+
+	optimize!(model)
+	println(model)
+    return objective_value(model) +λ₂#,value.(F),value.(G),value.(s)
 end
