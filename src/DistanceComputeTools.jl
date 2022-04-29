@@ -309,6 +309,8 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	verts = unique(e)
 	num_v = length(verts)
 	verts_inv = Dict(verts .=> 1:num_v)
+	e_inv_u = [verts_inv[e[j,1]] for j = 1:num_v]
+	e_inv_v = [verts_inv[e[j,2]] for j = 1:num_v]
 
 	model = Model(Gurobi.Optimizer)
 
@@ -318,10 +320,16 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 	p0_u = p0[e[:,1]]
 	p0_v = p0[e[:,2]]
+
 	p1_u = p1[e[:,1]]
 	p1_v = p1[e[:,2]]
 	r1_u = r1[e[:,1]]
 	r1_v = r1[e[:,2]]
+
+	p2_u = p2[e[:,1]]
+	p2_v = p2[e[:,2]]
+	r2_u = r2[e[:,1]]
+	r2_v = r2[e[:,2]]
 
 
     for j in verts
@@ -333,22 +341,26 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 	χ₁ = J1 .* ( 0.5*(p1_u .+ r1_u)./p0_u.^2 .+ 0.5*(p1_v .+ r1_v)./p0_v.^2 )
 	χ₂ = J1 .* ( (p1_u/6 .+ r1_u/3)./p0_u.^2 .+ (p1_v/6 .+ r1_v/3)./p0_v.^2 )
+	χ₃ = 0.5*(p2_u .+ r2_u)./p0_u.^2 .+ 0.5*(p2_v .+ r2_v)./p0_v.^2
 	#χ₁ = zeros(size(J1))
 	#χ₂ = zeros(size(J1))
-	χ₃ = zeros(size(J1))
-	for j = 1:num_e
+	#χ₃ = zeros(size(J1))
+	#for j = 1:num_e
 	#	χ₁[j] = J1[j] * ( 0.5*(p1_u[j] + r1_u[j])/p0_u[j]^2 + 0.5*(p1_v[j] + r1_v[j])/p0_v[j]^2 )
 	#	χ₂[j] = J1[j] * ( (p1_u[j]/6 + r1_u[j]/3)/p0_u[j]^2 + (p1_v[j]/6 + r1_v[j]/3)/p0_v[j]^2 )
-		χ₃[j] = 0.5*(p2[e[j,1]] + r2[e[j,1]])/p0_u[j]^2 + 0.5*(p2[e[j,2]] + r2[e[j,2]])/p0_v[j]^2
-	end
+	#	χ₃[j] = 0.5*(p2[e[j,1]] + r2[e[j,1]])/p0_u[j]^2 + 0.5*(p2[e[j,2]] + r2[e[j,2]])/p0_v[j]^2
+	#end
 
-	λ₂ = (1/12)*sum(J1[j]^2  *( (p1[e[j,1]]^2 +  p1[e[j,1]]*r1[e[j,1]] + r1[e[j,1]]^2) / p0[e[j,1]]^3 +
-	 	(p1[e[j,2]]^2 +  p1[e[j,2]]*r1[e[j,2]] + r1[e[j,2]]^2)/p0[e[j,2]]^3)  for j = 1:num_e)
+#	λ₂ = (1/12)*sum(J1[j]^2  *( (p1[e[j,1]]^2 +  p1[e[j,1]]*r1[e[j,1]] + r1[e[j,1]]^2) / p0[e[j,1]]^3 +
+#	 	(p1[e[j,2]]^2 +  p1[e[j,2]]*r1[e[j,2]] + r1[e[j,2]]^2)/p0[e[j,2]]^3)  for j = 1:num_e)
+	 λ₂ = (1/12)*sum(J1.^2  .*( (p1_u.^2 .+  p1_u.*r1_u .+ r1_u.^2) ./ p0_u.^3 .+
+	  		(p1_v.^2 .+  p1_v.*r1_v .+ r1_v.^2) ./p0_v.^3))
 
 
-		@objective(model,Min,-sum(F[j]*χ₁[j] .+ G[j]*χ₂[j] for j=1:num_e) +
-		0.5*sum( (F[j]^2 + F[j]*G[j] + (1/3)*G[j]^2)*( 1/ p0[e[j,1]] + 1/p0[e[j,2]]) for j = 1:num_e) -
-		0.5*sum(J1[j]^2 *(χ₃[j] + (1/6)*s[verts_inv[e[j,1]]]/ p0[e[j,1]]^2 + (1/6)*s[verts_inv[e[j,2]]]/ p0[e[j,2]]^2)  for j = 1:num_e) )
+		@objective(model,Min,-sum(F.*χ₁ .+ G.*χ₂) +
+		0.5*sum( (F.^2 .+ F.*G .+ (1/3)*G.^2) .*( 1 ./p0_u + 1 ./p0_v)) -
+		0.5*sum(J1 .^2 .*(χ₃ + (1/6)*s[e_inv_u] ./ p0_u.^2 + (1/6)*s[e_inv_v] ./ p0_v.^2)  ))
+		#0.5*sum(J1[j]^2 *(χ₃[j] + (1/6)*s[verts_inv[e[j,1]]]/ p0[e[j,1]]^2 + (1/6)*s[verts_inv[e[j,2]]]/ p0[e[j,2]]^2)  for j = 1:num_e) )
 	#@objective(model,Min,-sum(F[j]*χ₁[j] .+ G[j]*χ₂[j] for j=1:num_e) +
 	#		0.5*sum( (F[j]^2 + F[j]*G[j] + (1/3)*G[j]^2)*( 1/ p0[e[j,1]] + 1/p0[e[j,2]]) for j = 1:num_e) -
 	#		0.5*sum(J1[j]^2 *(χ₃[j] + (1/6)*s[verts_inv[e[j,1]]]/ p0[e[j,1]]^2 + (1/6)*s[verts_inv[e[j,2]]]/ p0[e[j,2]]^2  for j = 1:num_e)))
