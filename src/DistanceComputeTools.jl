@@ -347,12 +347,9 @@ function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2)
 		0.5*sum( (F.^2 .+ F.*G .+ (1/3)*G.^2) .*( 1 ./p0_u + 1 ./p0_v)) -
 		0.5*sum(J1 .^2 .*(χ₃ + (1/6)*s[e_inv_u] ./ p0_u.^2 + (1/6)*s[e_inv_v] ./ p0_v.^2)  ))
 	println(model)
-	return 1,1,1
 	optimize!(model)
 
-	println(e_inv_u)
-	println(e_inv_v)
-    return objective_value(model) +λ₂,value.(F),value.(G)
+    return objective_value(model) +λ₂
 end
 
 
@@ -394,10 +391,9 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 	Γ = zeros(num_v)
 	for i = 1:num_e
-		Γ[e[i,1]] = Γ[e[i,1]] + J1[i]^2/12/p0[e[i,1]]^2
-		Γ[e[i,2]] = Γ[e[i,2]] + J1[i]^2/12/p0[e[i,2]]^2
+		Γ[e[i,1]] = Γ[e[i,1]] - J1[i]^2/12/p0[e[i,1]]^2
+		Γ[e[i,2]] = Γ[e[i,2]] - J1[i]^2/12/p0[e[i,2]]^2
 	end
-	println(λ₂)
 
 	m = Dt*(χ₁./Λ) .- (r2 .- p2)
 	L = Dt* diagm(1 ./Λ)*D
@@ -410,12 +406,12 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 
 
-	μ₂ = μ₁ .- Γ
+	μ₂ = 0.5*(μ₁ .- Γ)
 	G = 6*(1 ./Λ).*(2*χ₂ .-χ₁ .+ D*μ₁ .- 2*D*μ₂)
 	F = (1 ./Λ).*(χ₁ .- D*μ₁) .- 0.5*G
 	s = -0.5*Dt*G
 	I2 = -sum(F.*χ₁) -sum(G.*χ₂) + 0.5*sum(Λ .* F.^2) + 0.5*sum(Λ .* F .*G) +(1/6)*sum(Λ .* G.^2) +λ₂ + sum(Γ.*s)
-    return I2,F,G
+    return I2
 end
 
 
@@ -429,9 +425,9 @@ function CFTD_curvature(g,p,dp,d2p)
     e,J1f,I0f = CFTD_perturbation_0_alt(g,p,z,dp)
 	#error()
     I1f = CFTD_perturbation_1(e,p,J1f,z,dp,z,d2p/2)
-    I2f = CFTD_perturbation_2(e,p,J1f,z,dp,z,d2p/2)
+    I2f = CFTD_perturbation_2_alt(e,p,J1f,z,dp,z,d2p/2)
 
-    I2c = CFTD_perturbation_2(e,p,2*J1f,-dp,dp,d2p/2,d2p/2)
+    I2c = CFTD_perturbation_2_alt(e,p,2*J1f,-dp,dp,d2p/2,d2p/2)
 
     return 4*(I0f)^(-0.75) * sqrt( (I2f-0.25*I2c)/sqrt(I0f) - 0.25*I1f^2/(I0f)^1.5)
 end
