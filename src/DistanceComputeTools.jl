@@ -210,7 +210,7 @@ function CFTD_perturbation_0_alt(g,p0,p1,r1)
 
 	Λ = [1/p0[e[i,1]] + 1/p0[e[i,2]] for i in 1:size(e,1)]
 
-	L = Dt* diagm(1 ./Λ)*D
+	L = Dt* spdiagm(0=>1 ./Λ)*D
 
 	if maximum(abs.(r1 .- p1))<1e-10
 		λ = zeros(num_e)
@@ -396,7 +396,7 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	end
 
 	m = Dt*(χ₁./Λ) .- (r2 .- p2)
-	L = Dt* diagm(1 ./Λ)*D
+	L = Dt* spdiagm(0=>1 ./Λ)*D
 
 	if maximum(abs.(m))<1e-10
 		μ₁ = zeros(num_e)
@@ -423,7 +423,6 @@ function CFTD_curvature(g,p,dp,d2p)
     z = zeros(size(p))
 
     e,J1f,I0f = CFTD_perturbation_0_alt(g,p,z,dp)
-	#error()
     I1f = CFTD_perturbation_1(e,p,J1f,z,dp,z,d2p/2)
     I2f = CFTD_perturbation_2_alt(e,p,J1f,z,dp,z,d2p/2)
 
