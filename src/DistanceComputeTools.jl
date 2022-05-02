@@ -1,4 +1,4 @@
-using Distributed
+1e-9using Distributed
 using IterativeSolvers
 using LinearAlgebra
 import LightGraphs
@@ -212,11 +212,14 @@ function CFTD_perturbation_0_alt(g,p0,p1,r1)
 
 	L = Dt* spdiagm(0=>1 ./Λ)*D
 
+	#println(size(L))
+	#println(sum((r1 .- p1) .!= 0))
 	if maximum(abs.(r1 .- p1))<1e-10
 		λ = zeros(num_e)
 	else
 		λ = -lsmr(L, r1 .- p1)
 	end
+
 
 	J = - (1 ./Λ) .* (D*λ)
 
@@ -280,7 +283,7 @@ function CFTD_perturbation_1(e,p0,J1,p1,r1,p2,r2)
 	J = [1:size(e,1);1:size(e,1)]
 	V = [-1*ones(size(e,1));ones(size(e,1))]
 	Dt = sparse(I,J,V)
-
+	println(size(Dt))
 	if maximum(abs.(r2 .- p2))<1e-10
 		J2 = zeros(num_e)
 	else
@@ -314,6 +317,7 @@ function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2)
 	@variable(model,F[1:num_e])
 	@variable(model,G[1:num_e])
 
+	p0[p0.==0] .= 1e-9
 	p0_u = p0[e[:,1]]
 	p0_v = p0[e[:,2]]
 
@@ -362,6 +366,7 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	verts = unique(e)
 	num_v = length(verts)
 
+	p0[p0.==0] .= 1e-7
 	p0_u = p0[e[:,1]]
 	p0_v = p0[e[:,2]]
 
@@ -389,7 +394,7 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	λ₂ = (1/12)*sum(J1.^2  .*( (p1_u.^2 .+  p1_u.*r1_u .+ r1_u.^2) ./ p0_u.^3 .+
 	  		(p1_v.^2 .+  p1_v.*r1_v .+ r1_v.^2) ./p0_v.^3)) - 0.5*sum(J1.^2 .*χ₃)
 
-	Γ = zeros(num_v)
+	Γ = zeros(size(p0))
 	for i = 1:num_e
 		Γ[e[i,1]] = Γ[e[i,1]] - J1[i]^2/12/p0[e[i,1]]^2
 		Γ[e[i,2]] = Γ[e[i,2]] - J1[i]^2/12/p0[e[i,2]]^2
@@ -397,12 +402,16 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 	m = Dt*(χ₁./Λ) .- (r2 .- p2)
 	L = Dt* spdiagm(0=>1 ./Λ)*D
-
+	println(size(L))
+	println("Starting expensive computation")
+	println(sum(abs.(m) .< 1e-10))
 	if maximum(abs.(m))<1e-10
-		μ₁ = zeros(num_e)
+		μ₁ = zeros(size(p0))
 	else
-		μ₁ = lsmr(L, m)
+		#μ₁ = lsmr(L, m)
+		μ₁ = minres(L, m)
 	end
+	println("Done expensive computation")
 
 
 
@@ -423,10 +432,14 @@ function CFTD_curvature(g,p,dp,d2p)
     z = zeros(size(p))
 
     e,J1f,I0f = CFTD_perturbation_0_alt(g,p,z,dp)
+	println("Done pert 0")
     I1f = CFTD_perturbation_1(e,p,J1f,z,dp,z,d2p/2)
+	println("Done pert 1")
     I2f = CFTD_perturbation_2_alt(e,p,J1f,z,dp,z,d2p/2)
+	println("Done pert 2a")
 
     I2c = CFTD_perturbation_2_alt(e,p,2*J1f,-dp,dp,d2p/2,d2p/2)
+	println("Done pert 2b")
 
     return 4*(I0f)^(-0.75) * sqrt( (I2f-0.25*I2c)/sqrt(I0f) - 0.25*I1f^2/(I0f)^1.5)
 end
