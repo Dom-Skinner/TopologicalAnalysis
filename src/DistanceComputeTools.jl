@@ -235,8 +235,6 @@ function CFTD_perturbation_0(g,p0,p1,r1)
     e = hcat(Es,Ed)
     e_rev = hcat(Ed, Es);
     e_tot = [e;e_rev];
-	#e_tot = e_tot[(p0[e_tot[:,1]] .> 0) .& (p0[e_tot[:,2]] .> 0),:]
-	p0[p0.==0] .= 1e-9
 	num_v = lg.nv(g)
     num_e = size(e_tot,1)
 
@@ -317,7 +315,6 @@ function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2)
 	@variable(model,F[1:num_e])
 	@variable(model,G[1:num_e])
 
-	p0[p0.==0] .= 1e-9
 	p0_u = p0[e[:,1]]
 	p0_v = p0[e[:,2]]
 
@@ -366,7 +363,6 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	verts = unique(e)
 	num_v = length(verts)
 
-	p0[p0.==0] .= 1e-7
 	p0_u = p0[e[:,1]]
 	p0_v = p0[e[:,2]]
 
@@ -428,17 +424,18 @@ function CFTD_curvature(g,p,dp,d2p)
 
 	@assert size(p) == size(dp)
 	@assert size(p) == size(d2p)
+	p[p.==0] .= 1e-9
 
     z = zeros(size(p))
 
-    e,J1f,I0f = CFTD_perturbation_0_alt(g,p,z,dp)
+    e,J1f,I0f = CFTD_perturbation_0_alt(g,copy(p),copy(z),copy(dp))
 	println("Done pert 0")
-    I1f = CFTD_perturbation_1(e,p,J1f,z,dp,z,d2p/2)
+    I1f = CFTD_perturbation_1(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),d2p/2)
 	println("Done pert 1")
-    I2f = CFTD_perturbation_2_alt(e,p,J1f,z,dp,z,d2p/2)
+    I2f = CFTD_perturbation_2_alt(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),copy(d2p)/2)
 	println("Done pert 2a")
 
-    I2c = CFTD_perturbation_2_alt(e,p,2*J1f,-dp,dp,d2p/2,d2p/2)
+    I2c = CFTD_perturbation_2_alt(e,copy(p),2*copy(J1f),-copy(dp),copy(dp),copy(d2p)/2,copy(d2p)/2)
 	println("Done pert 2b")
 
     return 4*(I0f)^(-0.75) * sqrt( (I2f-0.25*I2c)/sqrt(I0f) - 0.25*I1f^2/(I0f)^1.5)
