@@ -193,7 +193,7 @@ function CFTDist(g,p0,p1;k=10)
 end
 
 
-function CFTD_perturbation_0_alt(g,p0,p1,r1)
+function CFTD_perturbation_0(g,p0,p1,r1,p2,r2)
 	es = collect(lg.edges(g))
     Es = [lg.src(e) for e in es]
     Ed = [lg.dst(e) for e in es]
@@ -212,150 +212,23 @@ function CFTD_perturbation_0_alt(g,p0,p1,r1)
 
 	L = Dt* spdiagm(0=>1 ./Λ)*D
 
-	#println(size(L))
-	#println(sum((r1 .- p1) .!= 0))
 	if maximum(abs.(r1 .- p1))<1e-10
 		λ = zeros(num_e)
 	else
-		λ = -lsmr(L, r1 .- p1)
+		λ = -minres(L, r1 .- p1)
 	end
 
-
-	J = - (1 ./Λ) .* (D*λ)
-
-	return e, J, -0.5*sum(λ.*(r1 .- p1))
-end
-
-function CFTD_perturbation_0(g,p0,p1,r1)
-
-    # collect edges
-    es = collect(lg.edges(g))
-    Es = [lg.src(e) for e in es]
-    Ed = [lg.dst(e) for e in es]
-    e = hcat(Es,Ed)
-    e_rev = hcat(Ed, Es);
-    e_tot = [e;e_rev];
-	num_v = lg.nv(g)
-    num_e = size(e_tot,1)
-
-	I = [e_tot[:,1];e_tot[:,2]]
-	J = [1:size(e_tot,1);1:size(e_tot,1)]
-	V = [-1*ones(size(e_tot,1));ones(size(e_tot,1))]
-	Dt = sparse(I,J,V)
-    # With graph specified, now set up the convex problem
-    model = Model(Gurobi.Optimizer)
-	#set_optimizer_attributes(model, "OptimalityTol" => 1e-7)
-	#set_optimizer_attributes(model, "FeasibilityTol" => 1e-7)
-
-    @variable(model,J1[1:num_e] >= 0)
-
-    # rewrite the objective as linear, with SOC constraints
-    @objective(model,Min,sum(J1[j]^2 *(1/p0[e_tot[j,1]] + 1/p0[e_tot[j,2]])/2
-			for j = 1:num_e ))
-
-	@constraint(model,Dt*J1 .== r1  .- p1)
-
-    #for j in 1:num_v
-	 #   @constraint(model,-sum(J1[findall(e_tot[:,1] .== j)]) +
-	 #       sum(J1[findall(e_tot[:,2] .== j)]) == r1[j]  - p1[j])
-    #end
-	println("starting to optimize")
-    optimize!(model)
-
-	# After optimizing, only keep the edges that were actually used
-	J1_used = zeros(lg.ne(g))
-	edge_used = [maximum(value.(J1[i])) > maximum(value.(J1[i+lg.ne(g)])) for i = 1:lg.ne(g)]
-	edge_used = vcat(edge_used, .!edge_used)
-	J1_used = value.(J1[edge_used])
-
-    return e_tot[edge_used,:],J1_used, objective_value(model)
-end
-
-function CFTD_perturbation_1(e,p0,J1,p1,r1,p2,r2)
-
-    # collect edges
-	num_v = length(unique(e))
-	num_e = size(e,1)
-
-	I = [e[:,1];e[:,2]]
-	J = [1:size(e,1);1:size(e,1)]
-	V = [-1*ones(size(e,1));ones(size(e,1))]
-	Dt = sparse(I,J,V)
-	println(size(Dt))
-	if maximum(abs.(r2 .- p2))<1e-10
-		J2 = zeros(num_e)
-	else
-		J2 = lsmr(Dt, r2 .- p2)
-	end
-	#F1 = Dt \ (r2 .- p2)
-
-	chi = sum(  J2[i]*J1[i]*( 1/ p0[e[i,1]] + 1/p0[e[i,2]]) for i in 1:num_e)
-
-	lambda = -0.25*sum( J1[i]^2 * ( (p1[e[i,1]] +r1[e[i,1]])/p0[e[i,1]]^2 +
+	J₁ = - (1 ./Λ) .* (D*λ)
+	I0 = -0.5*sum(λ.*(r1 .- p1))
+	I1 = -sum( (r2 .- p2) .* λ) -0.25*sum( J₁[i]^2 * ( (p1[e[i,1]] +r1[e[i,1]])/p0[e[i,1]]^2 +
 		(p1[e[i,2]] +r1[e[i,2]])/p0[e[i,2]]^2) for i in 1:num_e)
-	I1 = chi+lambda
-    return I1
+
+	return e, J₁, I0, I1
 end
+
 
 
 function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2)
-
-	@assert size(e,1) == length(J1)
-
-	num_e = size(e,1)
-	verts = unique(e)
-	num_v = length(verts)
-	verts_inv = Dict(verts .=> 1:num_v)
-	e_inv_u = [verts_inv[e[j,1]] for j = 1:num_v]
-	e_inv_v = [verts_inv[e[j,2]] for j = 1:num_v]
-
-	model = Model(Gurobi.Optimizer)
-
-	@variable(model,s[1:num_v])
-	@variable(model,F[1:num_e])
-	@variable(model,G[1:num_e])
-
-	p0_u = p0[e[:,1]]
-	p0_v = p0[e[:,2]]
-
-	p1_u = p1[e[:,1]]
-	p1_v = p1[e[:,2]]
-	r1_u = r1[e[:,1]]
-	r1_v = r1[e[:,2]]
-
-	p2_u = p2[e[:,1]]
-	p2_v = p2[e[:,2]]
-	r2_u = r2[e[:,1]]
-	r2_v = r2[e[:,2]]
-
-
-    for j in verts
-    @constraint(model,-sum(F[findall(e[:,1] .== j)]) +
-        sum(F[findall(e[:,2] .== j)]) == r2[j] -p2[j] + s[verts_inv[j]])
-	@constraint(model,-sum(G[findall(e[:,1] .== j)]) +
-        sum(G[findall(e[:,2] .== j)]) == -2*s[verts_inv[j]])
-    end
-
-	χ₁ = J1 .* ( 0.5*(p1_u .+ r1_u)./p0_u.^2 .+ 0.5*(p1_v .+ r1_v)./p0_v.^2 )
-	χ₂ = J1 .* ( (p1_u/6 .+ r1_u/3)./p0_u.^2 .+ (p1_v/6 .+ r1_v/3)./p0_v.^2 )
-	χ₃ = 0.5*(p2_u .+ r2_u)./p0_u.^2 .+ 0.5*(p2_v .+ r2_v)./p0_v.^2
-
-	λ₂ = (1/12)*sum(J1.^2  .*( (p1_u.^2 .+  p1_u.*r1_u .+ r1_u.^2) ./ p0_u.^3 .+
-	  		(p1_v.^2 .+  p1_v.*r1_v .+ r1_v.^2) ./p0_v.^3))
-
-
-	@objective(model,Min,-sum(F.*χ₁ .+ G.*χ₂) +
-		0.5*sum( (F.^2 .+ F.*G .+ (1/3)*G.^2) .*( 1 ./p0_u + 1 ./p0_v)) -
-		0.5*sum(J1 .^2 .*(χ₃ + (1/6)*s[e_inv_u] ./ p0_u.^2 + (1/6)*s[e_inv_v] ./ p0_v.^2)  ))
-	println(model)
-	optimize!(model)
-
-    return objective_value(model) +λ₂
-end
-
-
-
-function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 
 	@assert size(e,1) == length(J1)
 
@@ -383,43 +256,35 @@ function CFTD_perturbation_2_alt(e,p0,J1,p1,r1,p2,r2)
 	D = sparse(J,I,V)
 
 	Λ = 1 ./p0_u .+ 1 ./p0_v
-	χ₁ = J1 .* ( 0.5*(p1_u .+ r1_u)./p0_u.^2 .+ 0.5*(p1_v .+ r1_v)./p0_v.^2 )
-	χ₂ = J1 .* ( (p1_u/6 .+ r1_u/3)./p0_u.^2 .+ (p1_v/6 .+ r1_v/3)./p0_v.^2 )
-	χ₃ = 0.5*(p2_u .+ r2_u)./p0_u.^2 .+ 0.5*(p2_v .+ r2_v)./p0_v.^2
+	χ₁ = J1 .* ( p1_u ./p0_u.^2 .+ p1_v ./p0_v.^2 )
+	χ₂ = J1 .* ( (r1_u .- p1_u)./p0_u.^2 .+ (r1_v .- p1_v)./p0_v.^2 )
 
-	λ₂ = (1/12)*sum(J1.^2  .*( (p1_u.^2 .+  p1_u.*r1_u .+ r1_u.^2) ./ p0_u.^3 .+
-	  		(p1_v.^2 .+  p1_v.*r1_v .+ r1_v.^2) ./p0_v.^3)) - 0.5*sum(J1.^2 .*χ₃)
+	χ₃ = (1/12)*sum(J1.^2  .*( (p1_u.^2 .+  p1_u.*r1_u .+ r1_u.^2) ./ p0_u.^3 .+
+	  		(p1_v.^2 .+  p1_v.*r1_v .+ r1_v.^2) ./p0_v.^3))
 
 	Γ = zeros(size(p0))
 	for i = 1:num_e
-		Γ[e[i,1]] = Γ[e[i,1]] - J1[i]^2/12/p0[e[i,1]]^2
-		Γ[e[i,2]] = Γ[e[i,2]] - J1[i]^2/12/p0[e[i,2]]^2
+		Γ[e[i,1]] = Γ[e[i,1]] - J1[i]^2/2/p0[e[i,1]]^2
+		Γ[e[i,2]] = Γ[e[i,2]] - J1[i]^2/2/p0[e[i,2]]^2
 	end
 
-	m = Dt*(χ₁./Λ) .- (r2 .- p2)
 	L = Dt* spdiagm(0=>1 ./Λ)*D
-	println(size(L))
-	println("Starting expensive computation")
-	println(sum(abs.(m) .< 1e-10))
+	s = -0.5*Dt*(χ₂./Λ) -0.5*L*Γ
+
+	m = (r2 .- p2) .- Dt*(χ₁ ./Λ) .+ s
 	if maximum(abs.(m))<1e-10
-		μ₁ = zeros(size(p0))
+		c = zeros(size(p0))
 	else
 		#μ₁ = lsmr(L, m)
-		μ₁ = minres(L, m)
+		c = minres(L, m)
 	end
-	println("Done expensive computation")
-
-
-
-	μ₂ = 0.5*(μ₁ .- Γ)
-	G = 6*(1 ./Λ).*(2*χ₂ .-χ₁ .+ D*μ₁ .- 2*D*μ₂)
-	F = (1 ./Λ).*(χ₁ .- D*μ₁) .- 0.5*G
-	s = -0.5*Dt*G
-	I2 = -sum(F.*χ₁) -sum(G.*χ₂) + 0.5*sum(Λ .* F.^2) + 0.5*sum(Λ .* F .*G) +(1/6)*sum(Λ .* G.^2) +λ₂ + sum(Γ.*s)
+	println(size(χ₁))
+	println(size(χ₂))
+	I2 = χ₃ + 0.5*sum(c .* (L*c))  + 0.5*sum(c .* (L*Γ)) + (1/6)*sum(Γ .* (L*Γ)) -
+		0.5*sum(χ₁.^2 ./Λ) - 0.5*sum(χ₁ .* χ₂ ./Λ) - (1/6)*sum(χ₂.^2 ./Λ) +
+		sum(Γ.*( p2/2 .+ r2/2 + s/6))
     return I2
 end
-
-
 function CFTD_curvature(g,p,dp,d2p)
 
 	@assert size(p) == size(dp)
@@ -428,14 +293,12 @@ function CFTD_curvature(g,p,dp,d2p)
 
     z = zeros(size(p))
 
-    e,J1f,I0f = CFTD_perturbation_0_alt(g,copy(p),copy(z),copy(dp))
-	println("Done pert 0")
-    I1f = CFTD_perturbation_1(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),d2p/2)
-	println("Done pert 1")
-    I2f = CFTD_perturbation_2_alt(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),copy(d2p)/2)
+    e,J1f,I0f,I1f = CFTD_perturbation_0(g,copy(p),copy(z),copy(dp))
+	println("Done pert 0 + 1")
+    I2f = CFTD_perturbation_2(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),copy(d2p)/2)
 	println("Done pert 2a")
 
-    I2c = CFTD_perturbation_2_alt(e,copy(p),2*copy(J1f),-copy(dp),copy(dp),copy(d2p)/2,copy(d2p)/2)
+    I2c = CFTD_perturbation_2(e,copy(p),2*copy(J1f),-copy(dp),copy(dp),copy(d2p)/2,copy(d2p)/2)
 	println("Done pert 2b")
 
     return 4*(I0f)^(-0.75) * sqrt( (I2f-0.25*I2c)/sqrt(I0f) - 0.25*I1f^2/(I0f)^1.5)
