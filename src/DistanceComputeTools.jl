@@ -293,7 +293,7 @@ function CFTD_curvature(g,p,dp,d2p)
 
     z = zeros(size(p))
 
-    e,J1f,I0f,I1f = CFTD_perturbation_0(g,copy(p),copy(z),copy(dp))
+    e,J1f,I0f,I1f = CFTD_perturbation_0(g,copy(p),copy(z),copy(dp),copy(z),copy(d2p)/2)
 	println("Done pert 0 + 1")
     I2f = CFTD_perturbation_2(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),copy(d2p)/2)
 	println("Done pert 2a")
