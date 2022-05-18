@@ -63,7 +63,7 @@ function distance_mat(fg,weight,optimal_transport)
 	if optimal_transport
 		d_flat = zeros(n_needed)
 		for idx = 1:length(d_flat)
-			d_flat[i] = f(W[i])
+			d_flat[idx] = f(W[idx])
 		end
 	else
 		d_flat = pmap(f,W)
