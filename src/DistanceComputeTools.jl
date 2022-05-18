@@ -61,13 +61,14 @@ function distance_mat(fg,weight,optimal_transport)
 	end
 
 	if optimal_transport
+		d_flat = zeros(n_needed)
 		for idx = 1:length(d_flat)
 			d_flat[i] = f(W[i])
 		end
 	else
 		d_flat = pmap(f,W)
 	end
-	
+
 	for i  = 1:n_needed
 		d[triangle_index(i)[1],triangle_index(i)[2]] = d_flat[i]
 		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
