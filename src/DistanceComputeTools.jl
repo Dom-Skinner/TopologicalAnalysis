@@ -60,7 +60,14 @@ function distance_mat(fg,weight,optimal_transport)
 		f = x -> sum(abs.(D' * minres(L , x)))
 	end
 
-	d_flat = pmap(f,W)
+	if optimal_transport
+		for idx = 1:length(d_flat)
+			d_flat[i] = f(W[i])
+		end
+	else
+		d_flat = pmap(f,W)
+	end
+	
 	for i  = 1:n_needed
 		d[triangle_index(i)[1],triangle_index(i)[2]] = d_flat[i]
 		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
@@ -194,6 +201,9 @@ end
 
 
 function CFTD_perturbation_0(g,p0,p1,r1,p2,r2)
+
+	@assert is_connected(g)
+
 	es = collect(lg.edges(g))
     Es = [lg.src(e) for e in es]
     Ed = [lg.dst(e) for e in es]
@@ -213,7 +223,7 @@ function CFTD_perturbation_0(g,p0,p1,r1,p2,r2)
 	L = Dt* spdiagm(0=>1 ./Λ)*D
 
 	if maximum(abs.(r1 .- p1))<1e-10
-		λ = zeros(num_e)
+		λ = zeros(num_v)
 	else
 		λ = -minres(L, r1 .- p1)
 	end
@@ -278,28 +288,60 @@ function CFTD_perturbation_2(e,p0,J1,p1,r1,p2,r2)
 		#μ₁ = lsmr(L, m)
 		c = minres(L, m)
 	end
-	println(size(χ₁))
-	println(size(χ₂))
 	I2 = χ₃ + 0.5*sum(c .* (L*c))  + 0.5*sum(c .* (L*Γ)) + (1/6)*sum(Γ .* (L*Γ)) -
 		0.5*sum(χ₁.^2 ./Λ) - 0.5*sum(χ₁ .* χ₂ ./Λ) - (1/6)*sum(χ₂.^2 ./Λ) +
 		sum(Γ.*( p2/2 .+ r2/2 + s/6))
+
     return I2
 end
 function CFTD_curvature(g,p,dp,d2p)
 
 	@assert size(p) == size(dp)
 	@assert size(p) == size(d2p)
-	p[p.==0] .= 1e-9
+	p[p.<1e-9] .= 1e-9
 
     z = zeros(size(p))
 
     e,J1f,I0f,I1f = CFTD_perturbation_0(g,copy(p),copy(z),copy(dp),copy(z),copy(d2p)/2)
-	println("Done pert 0 + 1")
     I2f = CFTD_perturbation_2(e,copy(p),copy(J1f),copy(z),copy(dp),copy(z),copy(d2p)/2)
-	println("Done pert 2a")
 
     I2c = CFTD_perturbation_2(e,copy(p),2*copy(J1f),-copy(dp),copy(dp),copy(d2p)/2,copy(d2p)/2)
-	println("Done pert 2b")
 
     return 4*(I0f)^(-0.75) * sqrt( (I2f-0.25*I2c)/sqrt(I0f) - 0.25*I1f^2/(I0f)^1.5)
+end
+
+
+function quadratic_fit(t_emp,q_emp,τ,σ)
+	k = length(t_emp)
+	nv = length(q_emp[1])
+	model = Model(Gurobi.Optimizer)
+    @variable(model,q0[1:nv] >= 1e-7)
+    @variable(model,q1[1:nv])
+	@variable(model,q2[1:nv])
+
+
+	@constraint(model,sum(q0) == 1)
+	@constraint(model,sum(q1) == 0)
+	@constraint(model,sum(q2) == 0)
+
+	τmax = minimum([(τ + σ/2);maximum(t_emp)+ σ/8])
+	τmin = maximum([(τ - σ/2);minimum(t_emp)- σ/8])
+	println(τmax)
+	println(τmin)
+	for t in τmin:(τmax-τmin)/100:τmax
+		@constraint(model, q0 .+ t * q1 .+ t^2 * q2 .>= 1e-7)
+	end
+
+	λ₁ = 1e-1
+	λ₂ = 5e-1
+	weighting = ones(size(t_emp))#exp.( - (t_emp .- τ).^2 / σ)
+	weighting[t_emp .< τmin] .= 0
+	weighting[t_emp .> τmax] .= 0
+	weighting .= 500*weighting./sum(weighting)
+	@objective(model,Min,sum( sum(weighting[i]*(q0 .+ t_emp[i] * q1 .+ t_emp[i]^2 * q2 .- q_emp[i]).^2) for i = 1:k)
+		+ λ₁*sum(q1.^2) + λ₂*sum(q2.^2))
+
+    optimize!(model)
+
+	return value.(q0), value.(q1), value.(q2)
 end
