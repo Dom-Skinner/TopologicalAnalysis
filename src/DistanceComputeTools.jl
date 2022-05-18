@@ -140,7 +140,7 @@ function min_cost_flow(g,sources)
     @constraint(model, A*J .== sources)
 
     optimize!(model)
-    return objective_value(model), value.(J)
+    return objective_value(model)#, value.(J)
 end
 
 function CFTDist(g,p0,p1;k=10)
