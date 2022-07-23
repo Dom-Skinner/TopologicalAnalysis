@@ -39,33 +39,17 @@ function resample(m::MotifDist,N::Int)
     return MotifDist(countmap(m_arr[idx]),m.dim,m.r)
 end
 
-function moments_find(m::MotifArray,n=2)
-    len = length.(m.tvec)
-
-    μ = sum(len)/length(len)
-    σ2 = sum((len .- μ).^2)/length(len)
-    if n == 2
-        return μ,σ2
-    elseif n== 3
-        skew = sum((len .- μ).^3)/length(len)
-        return μ,σ2,skew
-    else
-        error("TODO: Implement moments higher than n=3")
+function moments_find(m,n=2)
+    len_unique,p_len = tvec_dist(m)
+    
+    moments = zeros(n)
+    for i = 1:n
+        moments[n] = sum((len_unique.^n).* p)
     end
-end
-function moments_find(x,p,n=2)
-    μ = sum(x.*p)
-    σ2 = sum((x .- μ).^2 .*p)
-    if n == 2
-        return μ,σ2
-    elseif n== 3
-        skew = sum((x .- μ).^3 .*p)
-        return μ,σ2,skew
-    else
-        error("TODO: Implement moments higher than n=3")
-    end
+    return moments
 end
 
+#=
 function find_dist_props(weights_arr)
     l_mean = zeros(length(weights_arr))
     l_var = zeros(length(weights_arr))
@@ -79,7 +63,9 @@ function find_dist_props(weights_arr)
     end
     return l_mean,l_var,l_skew
 end
+=#
 
+#TODO: this should not be part of the package....
 TWcdf(x,beta) = cdf(TracyWidom(),x,beta=beta)
 TWpdf(s::Number,beta=1) = ForwardDiff.derivative(x->TWcdf(x,beta), s)[1]
 TWpdf(s::Vector,beta=1) = [ForwardDiff.derivative(x->TWcdf(x,beta), s1)[1] for s1 in s]
