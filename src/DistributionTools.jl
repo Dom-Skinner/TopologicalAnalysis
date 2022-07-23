@@ -44,7 +44,7 @@ function moments_find(m,n=2)
     
     moments = zeros(n)
     for i = 1:n
-        moments[n] = sum((len_unique.^n).* p)
+        moments[n] = sum((len_unique.^n).* p_len)
     end
     return moments
 end
