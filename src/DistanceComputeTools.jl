@@ -11,10 +11,14 @@ using JuMP, Gurobi
 
 
 function calculate_distance_matrix(fg::FlipGraph, motif_array;
-		optimal_transport= true)
+		optimal_transport= true,JS=false)
     # This function is a wrapper for all other functions in this file
     # from a flip graph and n motifs in  it returns the
     # n by n distance matrix
+	if JS
+		weight = [ret_weights(fg,m) for m in motif_array]
+		return JS_distance_mat(weight)
+	end
 
 	fg = connected_flip_graph(fg)
 
@@ -74,6 +78,31 @@ function distance_mat(fg,weight,optimal_transport)
 		d[triangle_index(i)[2],triangle_index(i)[1]] = d_flat[i]
 	end
 	return d
+end
+
+function JS_distance_mat(weight)
+	
+	n_needed = Int(ceil(0.5*length(weight)*(length(weight)-1)))
+    d = zeros(length(weight),length(weight))
+	
+	for i = 1:n_needed
+		w1 = weight[triangle_index(i)[1]]
+		w2 = weight[triangle_index(i)[2]]
+		sum_tot = 0.
+		for j = 1:length(w1)
+			z = 0.5*w1[j] + 0.5*w2[j]
+			if w1[j] > 0
+        		sum_tot += w1[j]*log(w1[j]/z) 
+			end
+			if w2[j] > 0
+				sum_tot += w2[j]*log(w2[j]/z)
+			end
+		end
+		d[triangle_index(i)[1],triangle_index(i)[2]] = sqrt(sum_tot/(2*log(2)))
+		d[triangle_index(i)[2],triangle_index(i)[1]] = sqrt(sum_tot/(2*log(2)))
+    end
+
+    return d
 end
 
 function ret_weights(fg::FlipGraph,motif::MotifArray)
