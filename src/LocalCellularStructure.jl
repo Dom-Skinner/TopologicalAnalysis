@@ -33,7 +33,7 @@ export
         #fill_W_distance_mat,fill_JS_distance_mat,
 
         # clustering
-        topological_cluster, minimally_connected_graph,
+        #topological_cluster, minimally_connected_graph,
 
         # Distribution tools
         tvec_dist, moments_find, TWpdf, resample,
