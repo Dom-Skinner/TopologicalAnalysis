@@ -17,12 +17,7 @@ end
 
 
 function vertex_num(g)
-    N = nv(g)
-    vertex_info = zeros(Int64,N)
-    for i = 1:N
-      vertex_info[i] = length(neighbors(g,i))
-    end
-    return vertex_info
+    return [length(neighbors(g,i)) for i = 1:nv(g)]
 end
 
 

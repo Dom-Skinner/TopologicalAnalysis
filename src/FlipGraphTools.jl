@@ -99,11 +99,6 @@ function weinberg_flip(g,cent_node,order_mat,d,s,v1,v2,r)
         return [-1]
     end
     weinberg_find!(code_tot,S_tot,1,g_ego,order_local,vmap_inv[cent_node])
-    if S_tot[1] == -1
-        # This is bad
-        savegraph( "debug2.lgz", g)
-        error("..")
-    end
     return code_tot[1]
 end
 
@@ -671,31 +666,3 @@ function compute_flip_graph3D(code_amalg,edge_keep)
     code_to_idx = Dict(tvec_tot .=> 1:length(tvec_tot))
     return FlipGraph(g,code_to_idx)
 end
-
-
-
-#=
-function readin_(Data_dir_str,N)
-    if N > 0
-        W_arr = Array{Dict}(undef,0)
-        for i = 1:N
-            dat_in = CSV.read(Data_dir_str*string(i)*"_avg.txt")
-            push!(W_arr,Dict(dat_in.codes .=> dat_in.freq))
-        end
-        return W_arr
-    else
-        dat_in = CSV.read(Data_dir_str)
-        return Dict(dat_in.codes .=> dat_in.freq)
-    end
-end
-
-function amalg2_(w_tot)
-    count_tot = Dict{String,Int64}()
-    for i = 1:length(w_tot)
-        for k in collect(keys(w_tot[i]))
-            count_tot[k]= get(count_tot, k,0) + Int(w_tot[i][k])
-        end
-    end
-    return sort(collect(count_tot), by = tuple -> last(tuple), rev=true)
-end
-=#

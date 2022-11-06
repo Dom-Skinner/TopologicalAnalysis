@@ -61,8 +61,7 @@ function shape_find(index_points,vert,regions,ridge_pts,ridge_vert,ind)
     # with that index, and a graph of the vertices and edges of the polytope
     kk = index_points[ind]
     if any(regions[kk] .== -1)
-        println("error in shape_find")
-        return -1
+        error("error in shape_find")
     end
 
     poly_pts = vert[regions[kk].+1,:] # the actual points of the polytope
@@ -144,7 +143,7 @@ function weinberg_vect(g_aug,e,order_mat; mirror=false)
         rem_edge!(g_aug, previous_vertex,current_vertex)
         previous_vertex,current_vertex = current_vertex,edge_choices[next_vertex_ind]
     end
-    println("Error occured")
+    error("Error occured in Weinberg computation")
 end
 
 function augmented_graph(g)
@@ -166,15 +165,8 @@ function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
         end
     end
     sort!(vecs)
-    try
-        S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
-        code_tot[kk] =  copy(vecs[1])
-
-    catch
-        savegraph("debug.lgz", g)
-        S_tot[kk] =  -1
-
-    end
+    S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
+    code_tot[kk] =  copy(vecs[1])
 
 end
 
@@ -215,7 +207,7 @@ function motif_size_find(Pos,r=2;periodic=true)
     if periodic; periodic_extend!(Positions,index_ref); end
     # All other operations are performed both periodic and non-periodic systems,
     # but for non-periodic systems should have no effect
-    p, simplices, neighbrs, edge_index = Delaunay_find(Positions)
+    _, simplices, _, _ = Delaunay_find(Positions)
     g_full = graph_construct(simplices,length(Positions))
     motif_lens = [length(neighborhood(g_full,k,r)) for k in 1:N]
     return motif_lens
@@ -226,16 +218,11 @@ function weinberg2D(delaunay_in,r)
 
     simplices = delaunay_in.simplices
     g = graph_construct(simplices,maximum(simplices))
-    not_edge = delaunay_in.not_edge
-    edge_index = setdiff(1:nv(g), not_edge)
+    edge_index = setdiff(1:nv(g), delaunay_in.not_edge)
 
     periodic = delaunay_in.periodic
 
-    if periodic
-        N = delaunay_in.original_vertex_number
-    else
-        N = nv(g)
-    end
+    N = periodic ? delaunay_in.original_vertex_number : nv(g)
 
     code_tot,S_tot = weinberg2D_core(g,N,r)
     idx = 1:N
