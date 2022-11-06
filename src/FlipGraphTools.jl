@@ -178,7 +178,7 @@ function compute_flip_graph(code_amalg;r=2)
                 end
             end
         end
-        println("Done ", i*block_len, "out of ", length(tvec_tot))
+        println("Done ", i*block_len, " out of ", length(tvec_tot))
     end
 
     return FlipGraph(w_network,vector_to_idx)
@@ -647,7 +647,7 @@ function find_flip_graph3D(tvec_tot,edge_keep)
         k_end = minimum([i*block_len ;length(tvec_tot)])
         tvec_nhbd = pmap(x->flip_1(x,edge_keep),tvec_tot[k_start:k_end])
         flip_loop_1_clean_up!(g,code_to_idx,tvec_new,tvec_tot,tvec_nhbd,k_start,k_end)
-        println("Done ", i*block_len, "out of ", length(tvec_tot))
+        println("Done ", i*block_len, " out of ", length(tvec_tot))
     end
     println("num edges = ",ne(g))
 
@@ -659,7 +659,7 @@ function find_flip_graph3D(tvec_tot,edge_keep)
         k_end = minimum([i*block_len ;length(tvec_new)])
         tvec_nhbd = pmap(x->flip_2(x,edge_keep),tvec_new[k_start:k_end])
         flip_loop_2_clean_up!(g,code_to_idx,tvec_nhbd,tvec_new,k_start,k_end)
-        println("Done ", i*block_len, "out of ", length(tvec_new))
+        println("Done ", i*block_len, " out of ", length(tvec_new))
     end
 
     return g
