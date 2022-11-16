@@ -4,7 +4,7 @@
 
 using PyCall
 using LinearAlgebra: norm, det
-using Statistics: median
+using Statistics: median, std
 using CSV, DataFrames
 const scipy_qhull = PyNULL()
 
