@@ -66,6 +66,14 @@ function circumradius(e1,e2,e3)
     return a*b*c/sqrt( (a+b+c) * (b+c-a) * (c+a-b) * (a+b-c))
 end
 
+function sidelengths(e1,e2,e3)
+    # see http://mathworld.wolfram.com/Circumradius.html
+    a = sqrt(e1[1]^2+e1[2]^2)
+    b = sqrt(e2[1]^2+e2[2]^2)
+    c = sqrt(e3[1]^2+e3[2]^2)
+    return [a,b,c]
+end
+
 function circumradius3D(e1,e2,e3,e4)
     # see http://mathworld.wolfram.com/Circumsphere.html
     e_n = [norm(e1)^2 ; norm(e2)^2; norm(e3)^2; norm(e4)^2]
@@ -101,7 +109,7 @@ function alpha_shape2D(simplices,p) #modified by Elise
         e1 = p[simplices[s,1],:] - p[simplices[s,2],:] #side lengths in 2D of triangle
         e2 = p[simplices[s,1],:] - p[simplices[s,3],:]
         e3 = p[simplices[s,2],:] - p[simplices[s,3],:]
-        α_val[s,:] = [e1,e2,e3]
+        α_val[s,:] = sidelengths(e1,e2,e3)
     end
     return α_val #Nx3 array of edge lengths
 end
