@@ -84,15 +84,26 @@ function circumradius3D(e1,e2,e3,e4)
     end
 end
 
-function alpha_shape2D(simplices,p)
-    α_val = zeros(length(simplices[:,1]))
+# function alpha_shape2D(simplices,p)
+#     α_val = zeros(length(simplices[:,1]))
+#     for s = 1:length(simplices[:,1])
+#         e1 = p[simplices[s,1],:] - p[simplices[s,2],:] #side lengths in 2D of triangle
+#         e2 = p[simplices[s,1],:] - p[simplices[s,3],:]
+#         e3 = p[simplices[s,2],:] - p[simplices[s,3],:]
+#         α_val[s] = circumradius(e1,e2,e3)
+#     end
+#     return α_val
+# end
+
+function alpha_shape2D(simplices,p) #modified by Elise
+    α_val = zeros(length(simplices[:,1]),3)
     for s = 1:length(simplices[:,1])
-        e1 = p[simplices[s,1],:] - p[simplices[s,2],:]
+        e1 = p[simplices[s,1],:] - p[simplices[s,2],:] #side lengths in 2D of triangle
         e2 = p[simplices[s,1],:] - p[simplices[s,3],:]
         e3 = p[simplices[s,2],:] - p[simplices[s,3],:]
-        α_val[s] = circumradius(e1,e2,e3)
+        α_val[s,:] = [e1,e2,e3]
     end
-    return α_val
+    return α_val #Nx3 array of edge lengths
 end
 
 function alpha_shape3D(simplices,p)
@@ -160,8 +171,10 @@ function Delaunay_find(Positions,α)
     α_val = alpha_shape_eval(simplices,p)
     # Determine α threshold value
     if α == 0
-        α = 2*median(α_val)
-        println("using default alpha of 2*(median alpha val) = ",α)
+        #α = 2*median(α_val) #For Dom circumradius method
+        #println("using default alpha of 2*(median alpha val) = ",α)
+        α = median(α_val)+ std(α_val)
+        println("using default filter of median(edge length)+stdev(edge length) = ",α)
     else
         println("using custom alpha = ",α)
     end
@@ -169,10 +182,12 @@ function Delaunay_find(Positions,α)
     if size(p,2) == 3
     # Figure out which simplices we want to keep, and also keep track of their
     # new indices in order to update the neighbour vector
-        α_keep = zeros(Int64,length(α_val))
+        α_keep = zeros(Int64,size(α_val,1))
         counter = 1
         for i = 1:length(α_keep)
-            if α_val[i] < α
+            indices = findall(y -> y < α, α_val[i,:]) #are all 3 edges < maxEdge (i.e. alpha)?
+            #if α_val[i] < α
+            if length(indices) == 3
                 α_keep[i] = counter
                 counter = counter + 1
             else
