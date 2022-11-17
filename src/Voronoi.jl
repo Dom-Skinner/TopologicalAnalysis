@@ -36,7 +36,7 @@ end
 
 
 function find_delaunay_network(path_to_csv_in::String; periodic=false, alpha = 0,
-                                tol=0.6, edge_keep=false)
+                                tol=0.6, edge_keep=true)
 
     dat_in = Matrix(CSV.read(path_to_csv_in,DataFrame))
     Positions = unique([dat_in[k,:] for k in 1:size(dat_in,1)])
@@ -49,7 +49,7 @@ function find_delaunay_network(path_to_csv_in::String; periodic=false, alpha = 0
 
 end
 function find_delaunay_network(Positions::Array; periodic=false, alpha = 0,
-                                tol=0.6, edge_keep=false)
+                                tol=0.6, edge_keep=true)
     return find_delaunay_network_core(Positions, periodic, alpha, tol, edge_keep)
 end
 #############################################################################
