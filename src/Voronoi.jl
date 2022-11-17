@@ -183,6 +183,8 @@ function Delaunay_find(Positions,α)
         #println("using default alpha of 2*(median alpha val) = ",α)
         α = median(α_val)+ std(α_val)
         println("using default filter of median(edge length)+stdev(edge length) = ",α)
+        println("where median(edge length) = ", median(α_val))
+        println("and stdev(edge length) = ", std(α_val))
     else
         println("using custom alpha = ",α)
     end
