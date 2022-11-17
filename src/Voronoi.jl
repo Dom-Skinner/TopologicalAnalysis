@@ -197,7 +197,7 @@ function Delaunay_find(Positions,α)
         for i = 1:length(α_keep)
             # indices = findall(y -> y < α, α_val[i,:]) #are all 3 edges < maxEdge (i.e. alpha)?
             if α_val[i] < α
-            if length(indices) == 3
+            # if length(indices) == 3
                 α_keep[i] = counter
                 counter = counter + 1
             else
@@ -214,7 +214,7 @@ function Delaunay_find(Positions,α)
     # This function keeps track of which points are on the boundary
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
-    return p, simplices, neighbours, edge_index, α_val,α
+    return p, simplices, neighbours, edge_index, α_val, α
 end
 
 
