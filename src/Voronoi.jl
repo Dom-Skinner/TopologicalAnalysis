@@ -198,7 +198,6 @@ function Delaunay_find(Positions,α)
         for i = 1:length(α_keep)
             # indices = findall(y -> y < α, α_val[i,:]) #are all 3 edges < maxEdge (i.e. alpha)?
             if α_val[i] < α
-                println("Alpha val is:",α_val[i])
             # if length(indices) == 3
                 α_keep[i] = counter
                 counter = counter + 1
@@ -210,6 +209,7 @@ function Delaunay_find(Positions,α)
         f = x->neighbor_relabel(x,α_keep)
         neighbours = f.(neighbours)
         # Only keep the small simplices
+        println("This is alpha_keep",α_keep)
         simplices = simplices[α_keep.>0,:]
         neighbours = neighbours[α_keep.>0,:]
     end
