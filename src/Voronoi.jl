@@ -209,7 +209,6 @@ function Delaunay_find(Positions,α)
         f = x->neighbor_relabel(x,α_keep)
         neighbours = f.(neighbours)
         # Only keep the small simplices
-        println("This is alpha_keep",α_keep)
         simplices = simplices[α_keep.>0,:]
         neighbours = neighbours[α_keep.>0,:]
     end
