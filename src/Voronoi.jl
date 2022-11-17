@@ -187,7 +187,7 @@ function Delaunay_find(Positions,α)
         println("using custom alpha = ",α)
     end
 
-    if size(p,2) == 3
+    if size(p,2) == 2 || if size(p,2) == 3 #filter a 2D example too
     # Figure out which simplices we want to keep, and also keep track of their
     # new indices in order to update the neighbour vector
         α_keep = zeros(Int64,size(α_val,1))
