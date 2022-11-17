@@ -181,7 +181,7 @@ function Delaunay_find(Positions,α)
     if α == 0
         α = 2*median(α_val) #For Dom circumradius method
         println("using default alpha of 2*(median alpha val) = ",α)
-        println("these are the alpha vals:", α_val)
+        #println("these are the alpha vals:", α_val)
         # α = median(α_val)+ std(α_val)
         # println("using default filter of median(edge length)+stdev(edge length) = ",α)
         # println("where median(edge length) = ", median(α_val))
@@ -198,6 +198,7 @@ function Delaunay_find(Positions,α)
         for i = 1:length(α_keep)
             # indices = findall(y -> y < α, α_val[i,:]) #are all 3 edges < maxEdge (i.e. alpha)?
             if α_val[i] < α
+                println("Alpha val is:",α_val[i])
             # if length(indices) == 3
                 α_keep[i] = counter
                 counter = counter + 1
