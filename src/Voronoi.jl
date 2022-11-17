@@ -181,6 +181,7 @@ function Delaunay_find(Positions,α)
     if α == 0
         α = 2*median(α_val) #For Dom circumradius method
         println("using default alpha of 2*(median alpha val) = ",α)
+        println("these are the alpha vals:", α_val)
         # α = median(α_val)+ std(α_val)
         # println("using default filter of median(edge length)+stdev(edge length) = ",α)
         # println("where median(edge length) = ", median(α_val))
