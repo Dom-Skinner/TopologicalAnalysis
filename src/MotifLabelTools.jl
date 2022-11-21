@@ -180,24 +180,21 @@ function edge_neighbors(g,edge_index)
 end
 
 
-function weinberg2D_core(g,N,r=2)
+function weinberg2D_core(g,N,idx,r=2)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
 
-    for k in 1:N
+    for k in idx
         nbh  = neighborhood(g,k,r)
         g_ego, vmap = induced_subgraph(g,nbh)
         vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
 
         x,y,fixed_vecs = tutte_embedding(g_ego)
         order_local = order_mat_find(g_ego,x,y)
-
-
+        
         weinberg_find!(code_tot,S_tot,k,g_ego,order_local,vmap_inv[k])
-
-
     end
-    return code_tot,S_tot
+    return code_tot[idx], S_tot[idx]
 end
 
 function motif_size_find(Pos,r=2;periodic=true)
@@ -224,9 +221,7 @@ function weinberg2D(delaunay_in,r)
 
     N = periodic ? delaunay_in.original_vertex_number : nv(g)
 
-    code_tot,S_tot = weinberg2D_core(g,N,r)
     idx = 1:N
-
     if !periodic
         for i = 1:r-1
             edge_index = edge_neighbors(g,edge_index)
@@ -234,7 +229,10 @@ function weinberg2D(delaunay_in,r)
         idx = setdiff(1:nv(g), edge_index)
     end
 
-    return idx, code_tot[idx], S_tot[idx]
+    code_tot,S_tot = weinberg2D_core(g,N,idx,r)
+
+    return idx, code_tot,S_tot
+    
 end
 
 ################################################################################
