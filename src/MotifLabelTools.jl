@@ -221,7 +221,7 @@ function weinberg2D(delaunay_in,r)
 
     N = periodic ? delaunay_in.original_vertex_number : nv(g)
 
-    idx = 1:N
+    idx = Vector(1:N)
     if !periodic
         for i = 1:r-1
             edge_index = edge_neighbors(g,edge_index)
