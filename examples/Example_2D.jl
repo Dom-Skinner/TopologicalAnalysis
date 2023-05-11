@@ -1,6 +1,6 @@
 # Example script showing how to use the package LocalCellularStructure
 
-# First load the required packages (I'll send instructions for how to do this separately)
+# First load the required packages. For instructions on how to install a custom package see, https://syl1.gitbook.io/julia-language-a-concise-tutorial/language-core/11-developing-julia-packages
 using LocalCellularStructure
 using Random
 
