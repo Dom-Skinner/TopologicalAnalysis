@@ -17,7 +17,7 @@ export
         save, load, avg_motif, TopologicalNetwork,
 
         # For computing topological types
-        weinberg_find!, find_delaunay_network, weinberg2D_core,
+        weinberg_find!, find_delaunay_network, weinberg2D,weinberg2D_core,
 
         # For computing flip graph
         FlipGraph,compute_flip_graph, compute_flip, compute_motifs,
