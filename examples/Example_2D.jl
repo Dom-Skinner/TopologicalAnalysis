@@ -1,7 +1,7 @@
-# Example script showing how to use the package LocalCellularStructure
+# Example script showing how to use the package TopologicalAnalysis
 
 # First load the required packages. For instructions on how to install a custom package see, https://syl1.gitbook.io/julia-language-a-concise-tutorial/language-core/11-developing-julia-packages
-using LocalCellularStructure
+using TopologicalAnalysis
 using Random
 
 

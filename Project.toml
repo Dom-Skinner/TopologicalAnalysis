@@ -1,4 +1,4 @@
-name = "LocalCellularStructure"
+name = "TopologicalAnalysis"
 uuid = "ec075e3b-8ebc-4826-9926-cbec34bd7480"
 authors = ["Dominic Skinner <dom15@live.com>"]
 version = "0.1.0"

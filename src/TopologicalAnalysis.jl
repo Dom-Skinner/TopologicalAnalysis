@@ -1,4 +1,4 @@
-module LocalCellularStructure
+module TopologicalAnalysis
 
 using Distributed
 

@@ -1,6 +1,6 @@
-# Example script showing how to use the package LocalCellularStructure in 3D.
+# Example script showing how to use the package TopologicalAnalysis in 3D.
 
-using LocalCellularStructure
+using TopologicalAnalysis
 using Random
 
 
@@ -126,7 +126,7 @@ using Distributed # for addprocs
 addprocs(3) # add, say, 3 processes
 println(nworkers()) # check they have been added
 
-@everywhere using LocalCellularStructure # make sure all processes are aware of LocalCellularStructure
+@everywhere using TopologicalAnalysis # make sure all processes are aware of TopologicalAnalysis 
 
 
 flip_graph_in = save_directory*"flip_graph_3D.h5"
