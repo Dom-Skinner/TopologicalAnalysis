@@ -1,4 +1,4 @@
-# Local Cellular Structure
+# TopologicalAnalysis
 This repository provides a julia package to perform topological analysis using the local structure of the Delaunay tessellation.
 
 The inputs are csv files of 2D or 3D point clouds, the outputs are distances between those point clouds.
@@ -8,7 +8,7 @@ Demonstrations of the method are provided in /examples/
 # Installation
 First install julia and enter package mode by pressing `]`
 
-Next, enter `add https://github.com/Dom-Skinner/LocalCellularStructure` to install the package. Once installed, go back to normal mode by pressing backspace. 
+Next, enter `add https://github.com/Dom-Skinner/TopologicalAnalysis` to install the package. Once installed, go back to normal mode by pressing backspace. 
 
 To use enter `using LocalCellularStructure`. The first time you enter this it will install the required scipy python package through Conda.jl which may take some time.
 
