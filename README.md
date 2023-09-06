@@ -18,4 +18,4 @@ To use the optimal transport distance or compute a curvature you must install a 
 If you make use of this code, consider citing the following publications
 
 1. The 2D framework was introduced in [Skinner, Song, Jeckel, Jelli, Drescher, Dunkel, Phys. Rev. Lett. (2021)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.126.048101) 
-2. The 3D framework is introduced in [Skinner, Jeckel, Martin, Drescher, Dunkel, arXiv:2209.00703](https://arxiv.org/abs/2209.00703)
+2. The 3D framework is introduced in [Skinner, Jeckel, Martin, Drescher, Dunkel, Sci. Adv. (2023)](https://www.science.org/doi/full/10.1126/sciadv.adg1261)
