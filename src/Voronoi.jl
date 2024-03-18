@@ -228,6 +228,10 @@ end
 
 function find_delaunay_network_core(Positions, periodic, α, tol, edge_keep)
 
+    if size(Positions,2) > 1
+        Positions = [Positions[i,:] for i = 1:size(Positions,1)]
+    end
+
     N = length(Positions)
     if periodic; periodic_extend!(Positions,tol=tol); end
 

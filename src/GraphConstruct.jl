@@ -76,6 +76,10 @@ function order_mat_find(g,x,y)
     for kk = 1:nv(g)
         N_list = neighbors(g,kk)
         theta = [atan(y[s]-y[kk], x[s]-x[kk]) for s in N_list]
+        tst=filter(x->x>0,abs.(theta .- theta'))
+        if (length(tst) > 0) && (minimum(tst) < 1e-15)
+            println("WARNING: Insufficient precision in graph embedding. Try using actual graph embedding with `compute_motifs(delaunay_in,Positions)` rather than default Tutte embedding with compute_motifs(delaunay_in)")
+        end
         order_mat[kk] = N_list[sortperm(theta)]
     end
     return order_mat
