@@ -172,7 +172,7 @@ function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
         end
     end
     sort!(vecs)
-    S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
+    S_tot[kk] = Int64(round(length(vecs)/length(unique(vecs)))) # size of the symmetry group
     code_tot[kk] =  copy(vecs[1])
 
 end
