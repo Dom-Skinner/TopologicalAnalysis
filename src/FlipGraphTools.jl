@@ -124,7 +124,7 @@ function flip_core_parallel(w_in,r)
 
     # need to do the embedding to find the order mat
     cent_node = 1
-    x,y,fixed_vecs = tutte_embedding(g,cent_node)
+    x,y,fixed_vecs = tutte_embedding(g,cent_node,r)
     order_mat = order_mat_find(g,x,y)
 
     
