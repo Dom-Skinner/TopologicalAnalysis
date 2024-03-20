@@ -123,10 +123,11 @@ function flip_core_parallel(w_in,r)
     end
 
     # need to do the embedding to find the order mat
-    x,y,fixed_vecs = tutte_embedding(g)
+    cent_node = 1
+    x,y,fixed_vecs = tutte_embedding(g,cent_node)
     order_mat = order_mat_find(g,x,y)
 
-    cent_node = 1
+    
     dist_to_cent = (dijkstra_shortest_paths(g,cent_node)).dists
     for e in edges(g)
         d = dst(e)

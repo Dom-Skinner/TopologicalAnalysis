@@ -37,10 +37,10 @@ function compute_motifs(delaunay_in::TopologicalNetwork;r=-1)
     return MotifArray(idx,tvec,delaunay_in.dim,r)
 end
 
-function compute_motifs(delaunay_in,X;r=-1)
+function compute_motifs(delaunay_in;r=-1)
     @assert delaunay_in.dim == 2
     if r < 0; r = 2; end
-    idx, tvec  = weinberg2D(delaunay_in,r,X)
+    idx, tvec  = weinberg2D(delaunay_in,r)
     return MotifArray(idx,tvec,delaunay_in.dim,r)
 end
 
@@ -172,7 +172,7 @@ function weinberg_find!(code_tot,S_tot,kk,g,order_mat,cent_node = -1)
         end
     end
     sort!(vecs)
-    S_tot[kk] = Int64(round(length(vecs)/length(unique(vecs)))) # size of the symmetry group
+    S_tot[kk] = Int64(length(vecs)/length(unique(vecs))) # size of the symmetry group
     code_tot[kk] =  copy(vecs[1])
 
 end
@@ -187,7 +187,7 @@ function edge_neighbors(g,edge_index)
 end
 
 
-function weinberg2D_core(g,N,idx,r=2,X=[])
+function weinberg2D_core(g,N,idx,r=2)
     code_tot = Vector{Array{Int64}}(undef,N)
     S_tot = Array{Int64}(undef,N)
     
@@ -196,12 +196,10 @@ function weinberg2D_core(g,N,idx,r=2,X=[])
         g_ego, vmap = induced_subgraph(g,nbh)
         vmap_inv = Dict(vmap[k] => k for k in 1:length(vmap))
 
-        if length(X) == 0
-            x,y,fixed_vecs = tutte_embedding(g_ego)
-        else
-            x = [m[1] for m in X[nbh]]
-            y = [m[2] for m in X[nbh]]
-        end
+        
+            
+        x,y = tutte_embedding(g_ego,vmap_inv[k],r)
+        
 
         order_local = order_mat_find(g_ego,x,y)
         
@@ -224,7 +222,7 @@ function motif_size_find(Pos,r=2;periodic=true)
 end
 
 
-function weinberg2D(delaunay_in,r,X=[])
+function weinberg2D(delaunay_in,r)
 
     simplices = delaunay_in.simplices
     g = graph_construct(simplices,maximum(simplices))
@@ -233,17 +231,6 @@ function weinberg2D(delaunay_in,r,X=[])
     periodic = delaunay_in.periodic
 
     N = periodic ? delaunay_in.original_vertex_number : nv(g)
-    
-    if length(X) >0
-        if size(X,2) > 1
-            Y = [X[i,:] for i = 1:size(X,1)]
-        else
-            Y = deepcopy(X)
-        end
-        if periodic; periodic_extend!(Y,tol=delaunay_in.tolerance); end
-    else
-        Y = []
-    end
 
     idx = Vector(1:N)
     if !periodic
@@ -253,7 +240,7 @@ function weinberg2D(delaunay_in,r,X=[])
         idx = setdiff(1:nv(g), edge_index)
     end
 
-    code_tot,S_tot = weinberg2D_core(g,N,idx,r,Y)
+    code_tot,S_tot = weinberg2D_core(g,N,idx,r)
 
     return idx, code_tot,S_tot
     
