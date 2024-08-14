@@ -17,6 +17,17 @@ Positions = rand(1000,2) # 1000 random points.
 # value of alpha. We can change this as needed.
 delaunay_info = find_delaunay_network(Positions, periodic=false, alpha = 0)
 
+# We can plot the points and see which are identified as edge points - we may wish to adjust
+# the alpha value if internal points are being identified as edge points.
+scatter(Positions[:,1],Positions[:,2],label=false,aspect_ratio=true,grid=false)
+scatter!(Positions[delaunay_info.not_edge,1],Positions[delaunay_info.not_edge,2],label=false,aspect_ratio=true)
+
+# This larger alpha value does a better job!
+delaunay_info = find_delaunay_network(Positions, periodic=false, alpha = 0.1)
+scatter(Positions[:,1],Positions[:,2],label=false,aspect_ratio=true,grid=false)
+scatter!(Positions[delaunay_info.not_edge,1],Positions[delaunay_info.not_edge,2],label=false,aspect_ratio=true)
+
+
 # delaunay_info is a structure of (custom) type TopologicalNetwork.
 # delaunay_info.simplices is a N×3 list of vertices making up the N triangles of the delauany.
 # delaunay_info.not_edge are the vertices identified as interior points (can be useful to plot

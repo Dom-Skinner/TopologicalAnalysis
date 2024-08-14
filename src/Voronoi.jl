@@ -189,6 +189,13 @@ function Delaunay_find(Positions,α)
     # This function keeps track of which points are on the boundary
     edge_index = edge_indices_delaunay(simplices,neighbours)
 
+    if size(p,2) == 2 
+        # In 3D we do something more clever, since we can work with boundary simplices. 
+        # Here, we just make a note of all points on the edge without changing the simplices
+        additional_edge = unique(simplices[α_val .> α,:]) 
+        edge_index = unique(vcat(edge_index,additional_edge))
+    end
+
     return p, simplices, neighbours, edge_index, α_val,α
 end
 
