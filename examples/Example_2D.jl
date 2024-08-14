@@ -3,7 +3,7 @@
 # First load the required packages. For instructions on how to install a custom package see, https://syl1.gitbook.io/julia-language-a-concise-tutorial/language-core/11-developing-julia-packages
 using TopologicalAnalysis
 using Random
-
+using Plots
 
 save_directory = "./"
 
@@ -118,7 +118,7 @@ CSV.write(save_directory*"result.csv",DataFrame(d,total_string_record))
 
 # We can further analyze this distance matrix using other Julia packages. 
 # For instance, we might wish to compute the MDS embedding and plot this.
-using Plots, MultivariateStats
+using MultivariateStats
 
 # Pass the distnace matrix into a MDS algorithm (see MultivariateStats package)
 MDS_coords = MultivariateStats.transform(MultivariateStats.fit(MDS,d, maxoutdim=2, distances=true))
