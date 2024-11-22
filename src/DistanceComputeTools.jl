@@ -7,7 +7,7 @@ import StatsBase
 using SparseArrays
 using Base.Threads
 
-using JuMP, Gurobi
+using JuMP, Gurobi, Ipopt
 
 
 function calculate_distance_matrix(fg::FlipGraph, motif_array;
@@ -64,14 +64,7 @@ function distance_mat(fg,weight,optimal_transport)
 		f = x -> sum(abs.(D' * minres(L , x)))
 	end
 
-	if optimal_transport
-		d_flat = zeros(n_needed)
-		for idx = 1:length(d_flat)
-			d_flat[idx] = f(W[idx])
-		end
-	else
-		d_flat = pmap(f,W)
-	end
+	d_flat = pmap(f,W)
 
 	for i  = 1:n_needed
 		d[triangle_index(i)[1],triangle_index(i)[2]] = d_flat[i]
@@ -162,7 +155,9 @@ function min_cost_flow(g,sources)
     j = [(1:ne);(1:ne)];
     v = [ones(ne);-1*ones(ne)];
 
-    model = Model(Gurobi.Optimizer)
+    model = Model(Ipopt.Optimizer)
+	set_optimizer_attribute(model, "print_level", 0)
+
     @variable(model, J[1:ne] >= 0)
     @objective(model, Min, sum(J))
     A = sparse(i,j,v)
